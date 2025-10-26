@@ -37,3 +37,25 @@ export const login = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
+
+// 📌 Lấy thông tin nhiều user theo danh sách ID (dùng cho microservice khác)
+export const getUsersInfo = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
+    }
+
+    // Lấy danh sách user tương ứng
+    const users = await User.find(
+      { _id: { $in: ids } },
+      '_id full_name email avatar created_at'
+    );
+
+    res.json(users);
+  } catch (error) {
+    console.error('❌ Lỗi getUsersInfo:', error.message);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};

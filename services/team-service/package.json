@@ -1,7 +1,7 @@
 {
-  "name": "auth-service",
+  "name": "team-service",
   "version": "1.0.0",
-  "description": "Microservice xác thực người dùng (Auth Service) cho hệ thống quản lý dự án",
+  "description": "Microservice quản lý nhóm (Team Service) cho hệ thống quản lý dự án và công việc nhóm",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "dev": "nodemon src/server.js"
   },
   "keywords": [
-    "auth",
+    "team",
     "microservice",
     "nodejs",
     "express",
@@ -18,7 +18,7 @@
   "author": "Quoc Dam",
   "license": "MIT",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "axios": "^1.7.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
