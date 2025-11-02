@@ -1,3 +1,4 @@
+// services/team-service/src/middleware/auth.middleware.js
 import jwt from 'jsonwebtoken';
 
 export const verifyToken = (req, res, next) => {
