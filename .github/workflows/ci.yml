@@ -1,4 +1,4 @@
-name: 🧱 CI cho Microservices (Backend + Frontend)
+name: 🧪 CI cho Microservices (Backend + Frontend)
 
 on:
   push:
@@ -7,33 +7,41 @@ on:
     branches: [ main, dev ]
 
 jobs:
+  # =======================
+  # 1️⃣ PHÁT HIỆN DỊCH VỤ THAY ĐỔI
+  # =======================
   detect-changes:
-    name: 🔍 Detect Changed Services
     runs-on: ubuntu-latest
     outputs:
-      changed_services: ${{ steps.detect.outputs.changed_services }}
+      changed_services: ${{ steps.filter.outputs.changed_services }}
+
     steps:
       - name: 📦 Checkout source code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2 # cần để git diff hoạt động đúng
 
-      - name: 🔎 Detect changed folders
-        id: detect
-        shell: bash
+      - name: 🔍 Detect changed folders
+        id: filter
         run: |
-          echo "Detecting changed services..."
-          CHANGED=$(git diff --name-only HEAD^ HEAD || echo "")
+          echo "🔍 Detecting changed services..."
+          BASE=${{ github.base_ref }}
+          HEAD=${{ github.head_ref }}
 
+          # Nếu là push trực tiếp (không phải PR)
+          if [ -z "$BASE" ]; then
+            BASE=HEAD~1
+            HEAD=HEAD
+          fi
+
+          CHANGED=$(git diff --name-only $BASE..$HEAD || echo "")
           echo "Changed files:"
           echo "$CHANGED"
 
           SERVICES=()
 
-          # Kiểm tra thư mục services/*
+          # Kiểm tra thay đổi trong từng service
           for folder in services/*; do
             svc=$(basename "$folder")
-            if echo "$CHANGED" | grep -q "services/$svc/"; then
+            if echo "$CHANGED" | grep -q "$svc/"; then
               SERVICES+=("$svc")
             fi
           done
@@ -48,15 +56,16 @@ jobs:
             SERVICES=("api-gateway" "auth-service" "team-service" "frontend")
           fi
 
-          # Tạo mảng JSON chuẩn
           JSON_ARRAY=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -s .)
           echo "Detected services: $JSON_ARRAY"
 
-          # Xuất output gọn gàng, không lỗi format
-          echo "changed_services=$(echo "$JSON_ARRAY" | tr -d '\n' | tr -d '\r')" >> $GITHUB_OUTPUT
+          echo "changed_services=$JSON_ARRAY" >> $GITHUB_OUTPUT
 
+  # =======================
+  # 2️⃣ BUILD + TEST
+  # =======================
   build-and-test:
-    name: 🧪 Build & Test Matrix Services
+    name: ⚙️ Build & Test Matrix Services
     runs-on: ubuntu-latest
     needs: detect-changes
 
@@ -74,16 +83,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
-      # ---------- BACKEND ----------
+      # =======================
+      # BACKEND SERVICES
+      # =======================
       - name: 🔧 Install dependencies (backend)
         if: ${{ matrix.service != 'frontend' }}
         working-directory: services/${{ matrix.service }}
         run: |
           if [ -f package-lock.json ]; then
+            echo "Using npm ci..."
             npm ci
           else
+            echo "No package-lock.json found → using npm install..."
             npm install
           fi
 
@@ -103,18 +115,25 @@ jobs:
         if: ${{ matrix.service != 'frontend' }}
         run: docker build -t ${{ matrix.service }} ./services/${{ matrix.service }}
 
-      # ---------- FRONTEND ----------
+      # =======================
+      # FRONTEND
+      # =======================
       - name: 🎨 Install & Build Frontend
         if: ${{ matrix.service == 'frontend' }}
         working-directory: apps/frontend
         run: |
           if [ -f package-lock.json ]; then
+            echo "Using npm ci..."
             npm ci
           else
+            echo "No package-lock.json found → using npm install..."
             npm install
           fi
           npm run build
 
+  # =======================
+  # 3️⃣ KIỂM TRA DOCKER COMPOSE
+  # =======================
   compose-check:
     name: 🧩 Validate Docker Compose setup
     runs-on: ubuntu-latest
