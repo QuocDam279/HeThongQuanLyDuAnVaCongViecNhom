@@ -17,6 +17,7 @@ jobs:
 
       - name: 🔍 Detect changed services
         id: filter
+        shell: bash
         run: |
           echo "🔍 Detecting changed services..."
 
@@ -33,7 +34,7 @@ jobs:
 
           SERVICES=()
 
-          # Kiểm tra service nào thay đổi
+          # Kiểm tra các service thay đổi
           for folder in services/*; do
             svc=$(basename "$folder")
             if echo "$CHANGED" | grep -q "$svc/"; then
@@ -41,19 +42,19 @@ jobs:
             fi
           done
 
-          # Nếu không có thay đổi, build tất cả
+          # Nếu không có gì thay đổi, build tất cả
           if [ ${#SERVICES[@]} -eq 0 ]; then
             SERVICES=("api-gateway" "auth-service" "team-service")
           fi
 
-          # Tạo JSON hợp lệ 1 dòng
+          # Chuyển mảng thành JSON (1 dòng, hợp lệ)
           JSON_ARRAY=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -cs .)
-          CLEAN_JSON=$(echo "$JSON_ARRAY" | tr -d '\n' | tr -d '\r' | xargs)
+          echo "Detected services: $JSON_ARRAY"
 
-          echo "Detected services: $CLEAN_JSON"
-
-          # Ghi output an toàn
-          echo "changed_services=$CLEAN_JSON" >> "$GITHUB_OUTPUT"
+          # Xuất output dạng JSON thật (không cần escape)
+          echo "changed_services<<EOF" >> $GITHUB_OUTPUT
+          echo "$JSON_ARRAY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
   build-and-test:
     name: ⚙️ Build & Test Microservices
@@ -63,8 +64,8 @@ jobs:
     strategy:
       matrix:
         service: ${{ fromJSON(needs.detect-changes.outputs.changed_services) }}
-      max-parallel: 3
       fail-fast: false
+      max-parallel: 3
 
     steps:
       - name: 📦 Checkout source code
@@ -74,6 +75,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: 🔧 Cài đặt dependencies
         working-directory: services/${{ matrix.service }}
@@ -96,9 +98,9 @@ jobs:
 
       - name: 🐳 Build Docker image
         run: |
-          DOCKER_PATH="${{ github.workspace }}/services/${{ matrix.service }}"
-          if [ -f "$DOCKER_PATH/Dockerfile" ]; then
-            docker build -t ${{ matrix.service }} "$DOCKER_PATH"
+          SERVICE_PATH="services/${{ matrix.service }}"
+          if [ -f "$SERVICE_PATH/Dockerfile" ]; then
+            docker build -t ${{ matrix.service }} "$SERVICE_PATH"
           else
             echo "⚠️ Không có Dockerfile trong ${{ matrix.service }}"
           fi
