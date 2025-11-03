@@ -3,7 +3,7 @@ import http from '../utils/httpClient.js';
 import Team from '../models/Team.js';
 import TeamMember from '../models/TeamMember.js';
 
-// Tạo team mới
+// Tạo team mới nè
 export const createTeam = async (req, res) => {
   try {
     const { team_name, description } = req.body;
@@ -25,7 +25,7 @@ export const getMyTeams = async (req, res) => {
     const teams = await TeamMember.find({ user_id: userId }).populate('team_id');
     res.json(teams.map(tm => tm.team_id));
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi của server', error: error.message });
   }
 };
 
