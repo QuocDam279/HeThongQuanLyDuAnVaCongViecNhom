@@ -21,9 +21,8 @@ jobs:
         id: detect
         run: |
           echo "🔍 Detecting changed services..."
-          # Nếu không có commit trước (ví dụ repo mới), mặc định build tất cả
           if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
-            echo "⚠️ Không tìm thấy commit trước — mặc định build tất cả service."
+            echo "⚠️ Không có commit trước — mặc định build tất cả."
             CHANGED="services/"
           else
             CHANGED=$(git diff --name-only HEAD~1 HEAD || echo "")
@@ -34,7 +33,6 @@ jobs:
 
           SERVICES=()
 
-          # Kiểm tra từng service có thay đổi không
           for folder in services/*; do
             svc=$(basename "$folder")
             if echo "$CHANGED" | grep -q "$svc/"; then
@@ -42,15 +40,21 @@ jobs:
             fi
           done
 
-          # Nếu không có gì thay đổi → build tất cả
+          # Nếu không có service thay đổi → build tất cả
           if [ ${#SERVICES[@]} -eq 0 ]; then
             SERVICES=("api-gateway" "auth-service" "team-service")
           fi
 
-          JSON=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -s -c .)
-          echo "Detected services: $JSON"
+          echo "Detected services: ${SERVICES[@]}"
 
-          # Lưu output hợp lệ cho job sau
+          # Ghi output JSON hợp lệ thủ công
+          JSON="["
+          for s in "${SERVICES[@]}"; do
+            JSON="$JSON\"$s\","
+          done
+          JSON="${JSON%,}]"
+
+          echo "JSON: $JSON"
           echo "changed_services=$JSON" >> $GITHUB_OUTPUT
 
       - id: set-output
@@ -82,7 +86,7 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: |
           if [ -f package-lock.json ]; then
-            npm ci
+            npm ci || npm install
           else
             npm install
           fi

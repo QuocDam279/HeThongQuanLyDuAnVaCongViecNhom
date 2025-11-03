@@ -1,3 +1,4 @@
+//services/api-gateway/src/middleware/verifyToken.js
 import { verifyTokenSync } from '../utils/jwt.js';
 
 /**

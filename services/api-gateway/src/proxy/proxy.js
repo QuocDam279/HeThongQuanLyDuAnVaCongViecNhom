@@ -1,3 +1,4 @@
+//services/api-gateway/src/proxy/proxy.js
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { services } from '../config/serviceMap.js';
 
