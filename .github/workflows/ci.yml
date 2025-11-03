@@ -30,7 +30,7 @@ jobs:
       - name: 🔧 Install dependencies (backend)
         if: ${{ matrix.service != 'frontend' }}
         working-directory: services/${{ matrix.service }}
-        run: npm ci
+        run: npm install
 
       - name: ✅ Run Lint & Build (backend)
         if: ${{ matrix.service != 'frontend' }}
@@ -55,7 +55,7 @@ jobs:
         if: ${{ matrix.service == 'frontend' }}
         working-directory: apps/frontend
         run: |
-          npm ci
+          npm install
           npm run build
 
   # =======================
