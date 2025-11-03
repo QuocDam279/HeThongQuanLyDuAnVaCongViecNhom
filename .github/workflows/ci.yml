@@ -68,7 +68,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: false # ⬅️ tắt hoàn toàn npm cache (để ngăn npm ci tự chạy)
 
       # ===============================
       # BACKEND SERVICES
