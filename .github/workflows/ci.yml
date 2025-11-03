@@ -1,4 +1,4 @@
-name: 🧪 CI cho Microservices (Backend + Frontend)
+name: 🧪 CI cho Microservices (Backend)
 
 on:
   push:
@@ -7,46 +7,33 @@ on:
     branches: [ main, dev ]
 
 jobs:
-  # =======================
-  # 1️⃣ PHÁT HIỆN DỊCH VỤ THAY ĐỔI
-  # =======================
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
       changed_services: ${{ steps.filter.outputs.changed_services }}
-
     steps:
       - name: 📦 Checkout source code
         uses: actions/checkout@v4
 
-      - name: 🔍 Detect changed folders
+      - name: 🔍 Detect changed services
         id: filter
-        shell: bash
         run: |
           echo "🔍 Detecting changed services..."
 
-          # Nếu không có base_ref (ví dụ push lần đầu)
-          BASE=${{ github.base_ref }}
-          HEAD=${{ github.head_ref }}
-
-          if [ -z "$BASE" ]; then
-            if git rev-parse HEAD~1 >/dev/null 2>&1; then
-              BASE="HEAD~1"
-            else
-              BASE=$(git rev-list --max-parents=0 HEAD) # commit đầu tiên
-            fi
-            HEAD="HEAD"
+          # Kiểm tra commit range (đề phòng push đầu tiên)
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          else
+            echo "⚠️ Không tìm thấy commit trước — mặc định build tất cả service."
+            CHANGED="services/"
           fi
-
-          echo "Comparing $BASE..$HEAD"
-          CHANGED=$(git diff --name-only $BASE..$HEAD || echo "")
 
           echo "Changed files:"
           echo "$CHANGED"
 
           SERVICES=()
 
-          # Kiểm tra thay đổi trong từng service backend
+          # Kiểm tra service nào thay đổi
           for folder in services/*; do
             svc=$(basename "$folder")
             if echo "$CHANGED" | grep -q "$svc/"; then
@@ -54,35 +41,27 @@ jobs:
             fi
           done
 
-          # Kiểm tra frontend
-          if echo "$CHANGED" | grep -q "apps/frontend/"; then
-            SERVICES+=("frontend")
-          fi
-
-          # Nếu không có gì thay đổi → chạy tất cả
+          # Nếu không có thay đổi, build tất cả
           if [ ${#SERVICES[@]} -eq 0 ]; then
-            SERVICES=("api-gateway" "auth-service" "team-service" "frontend")
+            SERVICES=("api-gateway" "auth-service" "team-service")
           fi
 
-          # JSON hợp lệ trên 1 dòng
-          JSON_ARRAY=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -c -s .)
+          # Tạo JSON hợp lệ
+          JSON_ARRAY=$(printf '%s\n' "${SERVICES[@]}" | jq -R . | jq -s .)
           echo "Detected services: $JSON_ARRAY"
 
-          # Ghi ra output (dạng chuẩn)
+          # Ghi output cho matrix job
           echo "changed_services=$JSON_ARRAY" >> $GITHUB_OUTPUT
 
-  # =======================
-  # 2️⃣ BUILD + TEST
-  # =======================
   build-and-test:
-    name: ⚙️ Build & Test Matrix Services
+    name: ⚙️ Build & Test Microservices
     runs-on: ubuntu-latest
     needs: detect-changes
 
     strategy:
       matrix:
         service: ${{ fromJSON(needs.detect-changes.outputs.changed_services) }}
-      max-parallel: 4
+      max-parallel: 3
       fail-fast: false
 
     steps:
@@ -93,65 +72,44 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
-      # =======================
-      # BACKEND SERVICES
-      # =======================
-      - name: 🔧 Install dependencies (backend)
-        if: ${{ matrix.service != 'frontend' }}
+      - name: 🔧 Cài đặt dependencies
         working-directory: services/${{ matrix.service }}
         run: |
-          if [ -f package-lock.json ]; then
-            echo "Using npm ci..."
-            npm ci
-          else
-            echo "No package-lock.json found → using npm install..."
+          if [ -f package.json ]; then
             npm install
+          else
+            echo "⚠️ Không có package.json trong ${{ matrix.service }}"
           fi
 
-      - name: ✅ Run Lint & Build (backend)
-        if: ${{ matrix.service != 'frontend' }}
+      - name: ✅ Kiểm tra code & Build
         working-directory: services/${{ matrix.service }}
         run: |
           npm run lint --if-present
           npm run build --if-present
 
-      - name: 🧪 Run Tests (backend)
-        if: ${{ matrix.service != 'frontend' }}
+      - name: 🧪 Chạy test (nếu có)
         working-directory: services/${{ matrix.service }}
         run: npm test --if-present
 
-      - name: 🐳 Build Docker Image (backend)
-        if: ${{ matrix.service != 'frontend' }}
-        run: docker build -t ${{ matrix.service }} ./services/${{ matrix.service }}
-
-      # =======================
-      # FRONTEND
-      # =======================
-      - name: 🎨 Install & Build Frontend
-        if: ${{ matrix.service == 'frontend' }}
-        working-directory: apps/frontend
+      - name: 🐳 Build Docker image
         run: |
-          if [ -f package-lock.json ]; then
-            echo "Using npm ci..."
-            npm ci
+          DOCKER_PATH="${{ github.workspace }}/services/${{ matrix.service }}"
+          if [ -f "$DOCKER_PATH/Dockerfile" ]; then
+            docker build -t ${{ matrix.service }} "$DOCKER_PATH"
           else
-            echo "No package-lock.json found → using npm install..."
-            npm install
+            echo "⚠️ Không có Dockerfile trong ${{ matrix.service }}"
           fi
-          npm run build
 
-  # =======================
-  # 3️⃣ KIỂM TRA DOCKER COMPOSE
-  # =======================
-  compose-check:
-    name: 🧩 Validate Docker Compose setup
+  compose-validate:
+    name: 🧩 Kiểm tra Docker Compose
     runs-on: ubuntu-latest
     needs: build-and-test
-
     steps:
       - name: 📦 Checkout source code
         uses: actions/checkout@v4
 
-      - name: 🐳 Docker Compose Config Check
+      - name: 🐋 Validate Docker Compose config
         run: docker compose config
