@@ -13,12 +13,12 @@ import {
 
 const router = express.Router();
 
-router.post('/', verifyToken, createTeam);
-router.get('/', verifyToken, getMyTeams);
-router.get('/:id', verifyToken, getTeamById);
-router.post('/:id/members', verifyToken, addMember);
-router.delete('/:id/members/:uid', verifyToken, removeMember);
-router.put('/:id', verifyToken, updateTeam);
-router.delete('/:id', verifyToken, deleteTeam);
+router.post('/', verifyToken, createTeam);// Tạo team mới
+router.get('/', verifyToken, getMyTeams);// Lấy tất cả team của user hiện tại
+router.get('/:id', verifyToken, getTeamById);// Lấy chi tiết 1 team
+router.post('/:id/members', verifyToken, addMember);// Thêm thành viên vào team
+router.delete('/:id/members/:uid', verifyToken, removeMember);// Xóa thành viên khỏi team
+router.put('/:id', verifyToken, updateTeam);// Cập nhật thông tin team
+router.delete('/:id', verifyToken, deleteTeam);// Xóa team
 
 export default router;

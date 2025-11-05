@@ -97,3 +97,31 @@ export const projectProxy = createProxyMiddleware({
     }
   }
 });
+
+// ----------------------------
+// TASK PROXY
+// ---------------------------- 
+
+export const taskProxy = createProxyMiddleware({
+  target: services.task,            
+  changeOrigin: true,
+  selfHandleResponse: false,
+  proxyTimeout: 10000,
+  timeout: 10000,
+  pathRewrite: {
+    '^/api/tasks': ''               
+  },
+  logLevel: 'warn',
+  onProxyReq: (proxyReq, req, res) => {
+    forwardBody(proxyReq, req);
+  },
+  onError: (err, req, res) => {
+    console.error('[TASK PROXY ERROR]', err.message);
+    if (!res.headersSent) {
+      res.status(502).json({
+        message: 'Cannot reach task service',
+        error: err.message
+      });
+    }
+  }
+});
