@@ -1,4 +1,4 @@
-// services/team-service/src/server.js
+// services/task-service/src/server.js
 import app from './app.js';
 import dotenv from 'dotenv';
 

@@ -3,7 +3,9 @@ import http from '../utils/httpClient.js';
 import Team from '../models/Team.js';
 import TeamMember from '../models/TeamMember.js';
 
-// Tạo team mới nè
+/**
+ * 🧱 Tạo team mới
+ */
 export const createTeam = async (req, res) => {
   try {
     const { team_name, description } = req.body;
@@ -12,13 +14,31 @@ export const createTeam = async (req, res) => {
     const team = await Team.create({ team_name, description, created_by });
     await TeamMember.create({ team_id: team._id, user_id: created_by, role: 'leader' });
 
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: created_by,
+          action: `Tạo nhóm mới: ${team_name}`,
+          related_id: team._id,
+          related_type: 'team'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (createTeam):', logErr.message);
+    }
+
     res.status(201).json({ message: 'Tạo team thành công', team });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
-// Lấy danh sách team của user
+/**
+ * 📋 Lấy danh sách team của user
+ */
 export const getMyTeams = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -29,7 +49,9 @@ export const getMyTeams = async (req, res) => {
   }
 };
 
-// Lấy chi tiết team
+/**
+ * 🔍 Lấy chi tiết team
+ */
 export const getTeamById = async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
@@ -39,8 +61,6 @@ export const getTeamById = async (req, res) => {
     if (members.length === 0) return res.json({ team, members: [] });
 
     const userIds = members.map(m => m.user_id);
-
-    // ✅ Gọi Auth Service qua httpClient
     const { data: users } = await http.auth.post('/users/info', { ids: userIds });
 
     const membersWithUser = members.map(m => ({
@@ -55,7 +75,9 @@ export const getTeamById = async (req, res) => {
   }
 };
 
-// Thêm thành viên
+/**
+ * ➕ Thêm thành viên vào team
+ */
 export const addMember = async (req, res) => {
   try {
     const { user_id, role } = req.body;
@@ -65,41 +87,92 @@ export const addMember = async (req, res) => {
     if (exists) return res.status(400).json({ message: 'Thành viên đã tồn tại trong team' });
 
     const member = await TeamMember.create({ team_id: id, user_id, role });
+
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Thêm thành viên ${user_id} vào nhóm ID ${id}`,
+          related_id: id,
+          related_type: 'team'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (addMember):', logErr.message);
+    }
+
     res.status(201).json({ message: 'Thêm thành viên thành công', member });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
-// Xóa thành viên
+/**
+ * ❌ Xóa thành viên khỏi team
+ */
 export const removeMember = async (req, res) => {
   try {
     const { id, uid } = req.params; // id = team_id, uid = user_id
     await TeamMember.findOneAndDelete({ team_id: id, user_id: uid });
+
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Xóa thành viên ${uid} khỏi nhóm ID ${id}`,
+          related_id: id,
+          related_type: 'team'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (removeMember):', logErr.message);
+    }
+
     res.json({ message: 'Xóa thành viên thành công' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
-// Cập nhật thông tin team
+/**
+ * ✏️ Cập nhật thông tin team
+ */
 export const updateTeam = async (req, res) => {
   try {
     const { id } = req.params;
     const { team_name, description } = req.body;
 
-    // Tìm team cần sửa
     const team = await Team.findById(id);
     if (!team) return res.status(404).json({ message: 'Không tìm thấy team' });
 
-    // Kiểm tra quyền: chỉ người tạo mới được sửa
     if (team.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền sửa team này' });
 
-    // Cập nhật
     team.team_name = team_name || team.team_name;
     team.description = description || team.description;
     await team.save();
+
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Cập nhật thông tin nhóm: ${team.team_name}`,
+          related_id: team._id,
+          related_type: 'team'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (updateTeam):', logErr.message);
+    }
 
     res.json({ message: 'Cập nhật team thành công', team });
   } catch (error) {
@@ -107,7 +180,9 @@ export const updateTeam = async (req, res) => {
   }
 };
 
-// Xóa team
+/**
+ * 🗑️ Xóa team
+ */
 export const deleteTeam = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,19 +190,30 @@ export const deleteTeam = async (req, res) => {
     const team = await Team.findById(id);
     if (!team) return res.status(404).json({ message: 'Không tìm thấy team' });
 
-    // Chỉ người tạo mới được xóa
     if (team.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền xóa team này' });
 
-    // Xóa team và toàn bộ thành viên
     await TeamMember.deleteMany({ team_id: id });
     await team.deleteOne();
+
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Xóa nhóm: ${team.team_name}`,
+          related_id: id,
+          related_type: 'team'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (deleteTeam):', logErr.message);
+    }
 
     res.json({ message: 'Xóa team thành công' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
-
-
-

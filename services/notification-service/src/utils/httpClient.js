@@ -8,19 +8,24 @@ const http = {
     timeout: 5000
   }),
 
+  team: axios.create({
+    baseURL: 'http://team-service:5002/api/teams', // 📡 Team Service
+    timeout: 5000
+  }),
+
   project: axios.create({
-    baseURL: 'http://project-service:5003/api/projects', // 📡 Dự kiến Project Service
+    baseURL: 'http://project-service:5003/api/projects', // 📡 Project Service
     timeout: 5000
   }),
 
-  notification: axios.create({
-    baseURL: 'http://notification-service:5004/api/notifications', // 📡 Dự kiến Notification Service
+  task: axios.create({
+    baseURL: 'http://task-service:5004/api/tasks', // 📡 Project Service
     timeout: 5000
   }),
 
-  activity: axios.create({
-    baseURL: 'http://activity-service:5007/api/activity-logs',
-    timeout: 5000
+  mail: axios.create({
+    baseURL: 'http://mail-service:5006/api/mail', // 📡 Mail Service
+    timeout: 20000
   })
 
 };

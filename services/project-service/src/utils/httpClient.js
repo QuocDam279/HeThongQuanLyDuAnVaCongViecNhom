@@ -11,6 +11,11 @@ const http = {
   team: axios.create({
     baseURL: 'http://team-service:5002/api/teams', // 📡 Team Service
     timeout: 5000
+  }),
+
+  activity: axios.create({
+    baseURL: 'http://activity-service:5007/api/activity-logs',
+    timeout: 5000
   })
 
 };

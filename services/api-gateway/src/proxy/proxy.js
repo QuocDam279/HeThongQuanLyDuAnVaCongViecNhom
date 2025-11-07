@@ -180,3 +180,84 @@ export const taskAttachmentProxy = createProxyMiddleware({
     }
   }
 });
+
+// ----------------------------
+// NOTIFICATION SERVICE PROXY
+// ----------------------------
+export const notificationProxy = createProxyMiddleware({
+  target: services.notification_service,    // 💡 trỏ tới URL notification service trong serviceMap
+  changeOrigin: true,
+  selfHandleResponse: false,
+  proxyTimeout: 10000,
+  timeout: 10000,
+  pathRewrite: {
+    '^/api/notifications': ''       // bỏ prefix /api/notifications
+  },
+  logLevel: 'warn',
+  onProxyReq: (proxyReq, req, res) => {
+    forwardBody(proxyReq, req);
+  },
+  onError: (err, req, res) => {
+    console.error('[NOTIFICATION SERVICE PROXY ERROR]', err.message);
+    if (!res.headersSent) {
+      res.status(502).json({
+        message: 'Cannot reach notification service',
+        error: err.message
+      });
+    } 
+  }
+});
+
+// ----------------------------
+// MAIL SERVICE PROXY
+// ----------------------------
+export const mailProxy = createProxyMiddleware({
+  target: services.mail_service,    
+  changeOrigin: true,
+  selfHandleResponse: false,
+  proxyTimeout: 10000,
+  timeout: 10000,
+  pathRewrite: {
+    '^/api/mail': ''      
+  },
+  logLevel: 'warn',
+  onProxyReq: (proxyReq, req, res) => {
+    forwardBody(proxyReq, req);
+  },
+  onError: (err, req, res) => {
+    console.error('[MAIL SERVICE PROXY ERROR]', err.message);
+    if (!res.headersSent) {
+      res.status(502).json({
+        message: 'Cannot reach mail service',
+        error: err.message
+      });
+    } 
+  }
+});
+
+// ----------------------------
+// ACTIVITY SERVICE PROXY
+// ---------------------------- 
+export const activityProxy = createProxyMiddleware({
+  target: services.activity,            
+  changeOrigin: true,
+  selfHandleResponse: false,
+  proxyTimeout: 10000,
+  timeout: 10000,
+  pathRewrite: {
+    '^/api/activity-logs': ''               
+  },
+  logLevel: 'warn',
+  onProxyReq: (proxyReq, req, res) => {
+    forwardBody(proxyReq, req);
+  },
+  onError: (err, req, res) => {
+    console.error('[ACTIVITY PROXY ERROR]', err.message);
+    if (!res.headersSent) {
+      res.status(502).json({
+        message: 'Cannot reach activity service',
+        error: err.message
+      });
+    }
+  }
+});

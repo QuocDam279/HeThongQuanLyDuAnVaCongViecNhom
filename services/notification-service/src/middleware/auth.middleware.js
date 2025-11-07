@@ -1,4 +1,4 @@
-// services/task-service/src/middleware/auth.middleware.js
+// services/notification-service/src/middleware/auth.middleware.js
 import jwt from 'jsonwebtoken';
 
 export const verifyToken = (req, res, next) => {

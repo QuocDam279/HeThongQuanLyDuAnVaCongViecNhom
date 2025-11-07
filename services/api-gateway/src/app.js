@@ -1,4 +1,3 @@
-// services/api-gateway/src/app.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,77 +13,65 @@ import {
   teamProxy,
   taskProxy,
   taskCommentProxy,
-  taskAttachmentProxy
+  taskAttachmentProxy,
+  notificationProxy,
+  mailProxy,
+  activityProxy
 } from './proxy/proxy.js';
 import { services } from './config/serviceMap.js';
 
 dotenv.config();
-
 const app = express();
 
-// 🛡️ Middleware cơ bản
+// Middleware cơ bản
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 app.use(requestLogger);
 
-// ⚙️ Rate limiter cơ bản
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200
-});
-app.use(limiter);
+// Giới hạn request
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
-// 💓 Healthcheck
+// Healthcheck
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 
-// 🧭 Debug route hiển thị danh sách service nội bộ
+// Debug: danh sách service
 app.get('/_services', (req, res) => res.json({ services }));
 
-/**
- * 1️⃣ AUTH SERVICE
- * - Các route đăng ký / đăng nhập / user info
- * - Không cần verifyToken tại gateway
- */
+// 🔑 Auth (public)
 app.use('/api/auth', authProxy);
 
-/**
- * 2️⃣ TEAM SERVICE
- * - Bảo vệ bằng verifyToken trước khi proxy
- */
+// 👥 Team
 app.use('/api/teams', verifyToken, teamProxy);
 
-/**
- * 3️⃣ PROJECT SERVICE
- */
+// 📁 Project
 app.use('/api/projects', verifyToken, projectProxy);
 
-/**
- * 4️⃣ TASK SERVICE (chính)
- */
+// ✅ Task
 app.use('/api/tasks', verifyToken, taskProxy);
 
-/**
- * 5️⃣ TASK COMMENT SERVICE
- * - Cho phép tạo/lấy/xóa bình luận task
- */
+// 💬 Task Comment
 app.use('/api/task-comments', verifyToken, taskCommentProxy);
 
-/**
- * 6️⃣ TASK ATTACHMENT SERVICE
- * - Cho phép upload/lấy/xóa file đính kèm
- */
+// 📎 Task Attachment
 app.use('/api/task-attachments', verifyToken, taskAttachmentProxy);
 
-/**
- * 7️⃣ Catch-all cho service chưa định nghĩa
- */
+// 🔔 Notification
+app.use('/api/notifications', verifyToken, notificationProxy);
+
+// Mail
+app.use('/api/mail', verifyToken, mailProxy);
+
+// 📊 Activity Logs
+app.use('/api/activity-logs', verifyToken, activityProxy);
+
+// 404 cho service chưa định nghĩa
 app.use('/api/:service', (req, res) => {
   res.status(404).json({ message: 'Service not configured in API Gateway' });
 });
 
-// 🧯 Global Error Handler
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('[GATEWAY ERROR]', err);
   res.status(500).json({

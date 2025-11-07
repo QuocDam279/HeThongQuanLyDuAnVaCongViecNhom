@@ -6,4 +6,7 @@ export const services = {
   task: process.env.TASK_SERVICE_URL || 'http://task-service:5004/api/tasks',
   task_comment: process.env.TASK_COMMENT_SERVICE_URL || 'http://task-service:5004/api/task-comments',
   task_attachment: process.env.TASK_ATTACHMENT_SERVICE_URL || 'http://task-service:5004/api/task-attachments',
+  notification_service: process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:5005/api/notifications',
+  mail_service: process.env.MAIL_SERVICE_URL || 'http://mail-service:5006/api/mail',
+  activity: process.env.ACTIVITY_SERVICE_URL || 'http://activity-service:5007/api/activity-logs'
 };

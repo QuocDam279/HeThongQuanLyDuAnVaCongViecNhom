@@ -19,6 +19,22 @@ export const createProject = async (req, res) => {
       created_by
     });
 
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: created_by,
+          action: `Tạo dự án mới: ${project_name}`,
+          related_id: project._id,
+          related_type: 'project'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (createProject):', logErr.message);
+    }
+
     res.status(201).json({ message: 'Tạo dự án thành công', project });
   } catch (error) {
     console.error('❌ Lỗi createProject:', error.message);
@@ -102,6 +118,22 @@ export const updateProject = async (req, res) => {
     project.updated_at = new Date();
     await project.save();
 
+    // 🧾 Ghi log hoạt động
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Cập nhật dự án: ${project.project_name}`,
+          related_id: project._id,
+          related_type: 'project'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (updateProject):', logErr.message);
+    }
+
     res.json({ message: 'Cập nhật dự án thành công', project });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -121,6 +153,22 @@ export const deleteProject = async (req, res) => {
     if (project.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền xóa dự án này' });
 
+    // 🧾 Ghi log trước khi xóa (để lưu lại tên dự án)
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Xóa dự án: ${project.project_name}`,
+          related_id: project._id,
+          related_type: 'project'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logErr) {
+      console.warn('⚠ Không thể ghi activity log (deleteProject):', logErr.message);
+    }
+
     await project.deleteOne();
 
     res.json({ message: 'Xóa dự án thành công' });
@@ -138,7 +186,7 @@ export const getMyProjects = async (req, res) => {
 
     // ✅ Gọi Team Service để lấy danh sách team mà user đang tham gia
     const { data: teams } = await http.team.get('/', {
-      headers: { Authorization: req.headers.authorization } // gửi token cho Team Service
+      headers: { Authorization: req.headers.authorization }
     });
 
     const teamIds = teams.map(t => t._id);

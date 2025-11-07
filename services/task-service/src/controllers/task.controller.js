@@ -40,6 +40,22 @@ export const createTask = async (req, res) => {
       priority
     });
 
+    // 🧾 5️⃣ Ghi log hoạt động (gọi sang Activity Service)
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: created_by,
+          action: `Tạo công việc mới: ${task_name}`,
+          related_id: task._id,
+          related_type: 'task'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logError) {
+      console.warn('⚠ Không thể ghi activity log:', logError.message);
+    }
+
     res.status(201).json({ message: 'Tạo task thành công', task });
   } catch (error) {
     console.error('❌ Lỗi createTask:', error.message);
@@ -136,9 +152,7 @@ export const updateTask = async (req, res) => {
       // Gọi Team Service để lấy danh sách thành viên
       const { data: teamData } = await http.team.get(
         `/${project.team._id}`,
-        {
-          headers: { Authorization: req.headers.authorization }
-        }
+        { headers: { Authorization: req.headers.authorization } }
       );
 
       // Danh sách ID thành viên
@@ -167,6 +181,22 @@ export const updateTask = async (req, res) => {
     task.updated_at = new Date();
     await task.save();
 
+    // 🧾 1️⃣ Ghi log hoạt động (gọi sang Activity Service)
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Cập nhật công việc: ${task.task_name} (${status || 'No status change'})`,
+          related_id: task._id,
+          related_type: 'task'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logError) {
+      console.warn('⚠ Không thể ghi activity log:', logError.message);
+    }
+
     res.json({ message: 'Cập nhật công việc thành công', task });
   } catch (error) {
     console.error('❌ Lỗi updateTask:', error.message);
@@ -185,13 +215,32 @@ export const deleteTask = async (req, res) => {
     const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: 'Không tìm thấy công việc' });
 
+    // ✅ Chỉ người tạo mới được xóa
     if (task.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền xóa công việc này' });
 
+    // 🧾 1️⃣ Ghi log hoạt động trước khi xóa (để tránh mất tên task)
+    try {
+      await http.activity.post(
+        '/',
+        {
+          user_id: req.user.id,
+          action: `Xóa công việc: ${task.task_name}`,
+          related_id: task._id,
+          related_type: 'task'
+        },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (logError) {
+      console.warn('⚠ Không thể ghi activity log khi xóa task:', logError.message);
+    }
+
+    // 🧹 2️⃣ Thực hiện xóa công việc
     await task.deleteOne();
 
     res.json({ message: 'Xóa công việc thành công' });
   } catch (error) {
+    console.error('❌ Lỗi deleteTask:', error.message);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
@@ -222,6 +271,20 @@ export const getMyTasks = async (req, res) => {
     res.json(tasks);
   } catch (error) {
     console.error('❌ Lỗi getMyTasks:', error.message);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+/**
+ * 🧠 Dành cho service nội bộ (Notification, Cron, ...)
+ * Lấy tất cả task trong hệ thống (chỉ các trường cần thiết)
+ */
+export const getAllTasks = async (req, res) => {
+  try {
+    const tasks = await Task.find({}, '_id task_name due_date status assigned_to');
+    res.json(tasks);
+  } catch (error) {
+    console.error('❌ Lỗi getAllTasks:', error.message);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };

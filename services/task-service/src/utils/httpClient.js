@@ -1,4 +1,4 @@
-// src/utils/httpClient.js
+// services/task-service/src/utils/httpClient.js
 import axios from 'axios';
 
 
@@ -15,6 +15,11 @@ const http = {
 
   project: axios.create({
     baseURL: 'http://project-service:5003/api/projects', // 📡 Project Service
+    timeout: 5000
+  }),
+
+  activity: axios.create({
+    baseURL: 'http://activity-service:5007/api/activity-logs', // 📡 Activity Log Service
     timeout: 5000
   })
 

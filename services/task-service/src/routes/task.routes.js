@@ -7,7 +7,8 @@ import {
   updateTask,
   deleteTask,
   getTaskStatsByProject,
-  getMyTasks
+  getMyTasks,
+  getAllTasks
 } from '../controllers/task.controller.js';
 
 const router = express.Router();
@@ -53,5 +54,11 @@ router.put('/:id', verifyToken, updateTask);
  * DELETE /api/tasks/:id
  */
 router.delete('/:id', verifyToken, deleteTask);
+
+/**
+ * 🧠 Route nội bộ cho Notification Service
+ * GET /api/tasks/internal/all
+ */
+router.get('/internal/all', getAllTasks);
 
 export default router;
