@@ -1,17 +1,16 @@
 // src/components/team/TeamDetail.jsx
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import Menu from "../components/common/Menu";
 import Header from "../components/common/Header";
 import TeamInfo from "../components/team/TeamInfo";
 import TeamMembers from "../components/team/TeamMembers";
-import TeamActions from "../components/team/TeamActions";
 import TabsContainer from "../components/common/TabsContainer";
 import ProjectList from "../components/project/ProjectList";
 import CreateProjectButton from "../components/project/CreateProjectButton";
 import { getTeamById } from "../services/teamService";
 import { getProjectsByTeam } from "../services/projectService";
+import { getTasksByProject } from "../services/taskService";
 
 export default function TeamDetail() {
   const { id } = useParams();
@@ -26,7 +25,6 @@ export default function TeamDetail() {
   const [projectError, setProjectError] = useState("");
 
   const [activeTab, setActiveTab] = useState("members"); // 'members' | 'projects'
-
   const sidebarWidth = collapsed ? "4rem" : "16rem";
 
   // ---------- Fetch team ----------
@@ -52,7 +50,17 @@ export default function TeamDetail() {
     setProjectError("");
     try {
       const data = await getProjectsByTeam(teamId);
-      setProjects(data);
+      const projectsWithTasks = await Promise.all(
+        data.map(async (project) => {
+          try {
+            const tasks = await getTasksByProject(project._id);
+            return { ...project, tasks };
+          } catch {
+            return { ...project, tasks: [] };
+          }
+        })
+      );
+      setProjects(projectsWithTasks);
     } catch (err) {
       setProjectError(err.message || "Lỗi khi tải danh sách dự án");
     } finally {
@@ -65,18 +73,14 @@ export default function TeamDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (team?.team?._id) {
-      fetchProjects(team.team._id);
-    }
+    if (team?.team?._id) fetchProjects(team.team._id);
   }, [team?.team?._id]);
 
-  const handleMembersUpdated = (newMembers) => {
+  const handleMembersUpdated = (newMembers) =>
     setTeam((prev) => ({ ...prev, members: newMembers }));
-  };
 
-  const handleProjectCreated = (newProject) => {
+  const handleProjectCreated = (newProject) =>
     setProjects((prev) => [newProject, ...prev]);
-  };
 
   return (
     <div className="bg-white min-h-screen flex">
@@ -102,14 +106,15 @@ export default function TeamDetail() {
                   Nhóm
                 </Link>
                 <span className="mx-1 text-gray-400">→</span>
-                <span className="font-medium text-gray-700">{team.team.team_name}</span>
+                <span className="font-medium text-gray-700">
+                  {team.team.team_name}
+                </span>
               </div>
 
-              <TeamInfo team={team.team} members={team.members} />
-
-              <TeamActions
-                teamId={team.team._id}
-                teamData={team.team}
+              {/* TeamInfo kèm TeamActions */}
+              <TeamInfo
+                team={team.team}
+                members={team.members}
                 currentUserRole={team.currentUserRole}
                 onUpdated={(updatedTeam) =>
                   setTeam((prev) => ({ ...prev, team: updatedTeam }))
@@ -117,6 +122,7 @@ export default function TeamDetail() {
                 onDeleted={() => navigate("/nhom")}
               />
 
+              {/* Tabs: Thành viên & Dự án */}
               <TabsContainer
                 tabs={[
                   { key: "members", label: "Thành viên" },

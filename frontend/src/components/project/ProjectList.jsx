@@ -10,7 +10,7 @@ export default function ProjectList({ projects, loading, error }) {
   if (projects.length === 0) return <p>Chưa có dự án nào</p>;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {projects.map((project) => (
         <ProjectCard
           key={project._id}

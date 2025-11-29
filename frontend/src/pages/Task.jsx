@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from "react";
 import Menu from "../components/common/Menu";
 import Header from "../components/common/Header";
-import TaskList from "../components/task/TaskList";
 import TaskStats from "../components/task/TaskStats";
-import { getMyTasks, getTaskStats } from "../services/taskService";
+import TaskDragDrop from "../components/task/TaskDragDrop";
+import TaskItem from "../components/task/TaskItem"; // Import TaskItem có sẵn
+import { getMyTasks, getTaskStats, updateTask } from "../services/taskService";
 
 export default function Task() {
   const [collapsed, setCollapsed] = useState(false);
@@ -35,6 +36,17 @@ export default function Task() {
     } catch {}
   };
 
+  const handleTaskUpdated = async (taskId, payload) => {
+    try {
+      await updateTask(taskId, payload);
+      await fetchTasks();
+      await fetchStats();
+    } catch (err) {
+      setError("Lỗi khi cập nhật công việc");
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
     fetchStats();
@@ -53,14 +65,22 @@ export default function Task() {
         >
           <h1 className="text-3xl font-bold mb-2">Công việc của tôi</h1>
 
-          <TaskStats stats={stats} />
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
 
           {loading ? (
-            <p>Đang tải công việc...</p>
-          ) : error ? (
-            <p className="text-red-500">{error}</p>
+            <div className="flex justify-center items-center py-12">
+              <div className="text-gray-500">Đang tải...</div>
+            </div>
           ) : (
-            <TaskList tasks={tasks} />
+            <TaskDragDrop 
+              tasks={tasks} 
+              onTaskUpdated={handleTaskUpdated}
+              TaskItemComponent={TaskItem} // Truyền TaskItem component
+            />
           )}
         </div>
       </div>

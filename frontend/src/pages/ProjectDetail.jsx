@@ -3,9 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Menu from "../components/common/Menu";
 import Header from "../components/common/Header";
-import TabsContainer from "../components/common/TabsContainer";
 import ProjectInfo from "../components/project/ProjectInfo";
-import MemberList from "../components/team/MemberList";
 import TaskList from "../components/task/TaskList";
 import CreateTaskButton from "../components/task/CreateTaskButton";
 import { getProjectById } from "../services/projectService";
@@ -15,22 +13,15 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const [collapsed, setCollapsed] = useState(false);
 
-  // Project state
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Tabs
-  const [activeTab, setActiveTab] = useState("members");
-
-  // Task states
   const [tasks, setTasks] = useState([]);
   const [taskLoading, setTaskLoading] = useState(false);
-  const [taskUpdatedFlag, setTaskUpdatedFlag] = useState(0);
 
   const sidebarWidth = collapsed ? "4rem" : "16rem";
 
-  // Fetch project
   const fetchProject = async () => {
     setLoading(true);
     setError("");
@@ -44,7 +35,6 @@ export default function ProjectDetail() {
     }
   };
 
-  // Fetch tasks
   const fetchTasks = async () => {
     setTaskLoading(true);
     try {
@@ -57,31 +47,19 @@ export default function ProjectDetail() {
     }
   };
 
-  // ✅ Khi task thay đổi (update, delete, create)
   const handleTaskUpdated = async () => {
-    console.log("🔄 Task updated, refreshing...");
-    setTaskUpdatedFlag((f) => f + 1);
-    
-    // Fetch tasks ngay lập tức
+    // Refresh task list
     await fetchTasks();
-    
-    // ✅ Đợi một chút để backend tính xong progress
+    // Đợi backend tính progress xong
     await new Promise(resolve => setTimeout(resolve, 400));
-    
-    // Fetch lại project để lấy progress mới
+    // Refresh project info (để lấy progress mới)
     await fetchProject();
-    
-    console.log("✅ Refresh hoàn tất");
   };
 
-  // Initial load
   useEffect(() => {
     fetchProject();
+    fetchTasks();
   }, [id]);
-
-  useEffect(() => {
-    if (activeTab === "tasks") fetchTasks();
-  }, [activeTab]);
 
   if (loading) return <p className="pt-24 px-6">Đang tải chi tiết dự án...</p>;
   if (error) return <p className="pt-24 px-6 text-red-500">{error}</p>;
@@ -93,7 +71,7 @@ export default function ProjectDetail() {
       <div className="flex-1">
         <Header collapsed={collapsed} sidebarWidth={sidebarWidth} />
         <div
-          className="pt-24 px-6 space-y-8 transition-all duration-300"
+          className="pt-24 px-6 space-y-8 transition-all duration-300 mb-10"
           style={{ marginLeft: sidebarWidth }}
         >
           {/* Breadcrumb */}
@@ -112,38 +90,28 @@ export default function ProjectDetail() {
 
           {/* Project info */}
           <ProjectInfo project={project} />
+          <div className="bg-white rounded-2xl border border-gray-200 relative">
+            {/* Header sát viền trên */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-lg font-bold text-gray-800">
+              Danh sách công việc của dự án
+            </div>
 
-          {/* Tabs */}
-          <TabsContainer
-            tabs={[
-              { key: "members", label: "Thành viên" },
-              { key: "tasks", label: "Công việc" },
-            ]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          >
-            {activeTab === "members" && (
-              <MemberList members={project.team_members || []} />
-            )}
-
-            {activeTab === "tasks" && (
-              <div className="space-y-4 relative">
-                {taskLoading ? (
-                  <p>Đang tải công việc...</p>
-                ) : tasks.length > 0 ? (
-                  <TaskList tasks={tasks} onTaskUpdated={handleTaskUpdated} />
-                ) : (
-                  <p>Chưa có công việc nào.</p>
-                )}
-
-                <CreateTaskButton
-                  projectId={id}
-                  onCreated={handleTaskUpdated}
-                  members={project.team_members || []}
-                />
-              </div>
-            )}
-          </TabsContainer>
+            {/* Task list với khoảng padding nhỏ */}
+            <div className="mt-6 px-3 py-3 divide-y divide-gray-200 max-h-[500px] overflow-y-auto rounded-b-2xl">
+              {taskLoading ? (
+                <p className="text-gray-500 text-center py-4">Đang tải công việc...</p>
+              ) : tasks.length > 0 ? (
+                <TaskList tasks={tasks} onTaskUpdated={handleTaskUpdated} />
+              ) : (
+                <p className="text-gray-500 text-center py-4">Chưa có công việc nào</p>
+              )}
+            </div>
+          </div>
+            <CreateTaskButton
+              projectId={id}
+              onCreated={handleTaskUpdated}
+              members={project.team_members || []}
+            />
         </div>
       </div>
     </div>

@@ -4,72 +4,88 @@ import TaskProgressBar from "./TaskProgressBar";
 import { updateTask } from "../../services/taskService";
 
 export default function TaskSidebar({ task, onUpdated }) {
-  const updateField = async (field, value) => {
-    const updatedData = { [field]: value };
+  // Map giữa tiếng Việt và giá trị backend
+  const statusMap = {
+    "Chưa thực hiện": "To Do",
+    "Đang thực hiện": "In Progress",
+    "Đã hoàn thành": "Done",
+  };
 
-    // Đồng bộ status <-> progress
+  const priorityMap = {
+    Thấp: "Low",
+    "Trung bình": "Medium",
+    Cao: "High",
+  };
+
+  const updateField = async (field, value) => {
+    const updatedData = {};
+
     if (field === "status") {
-      if (value === "Done") updatedData.progress = 100;
-      else if (value === "To Do") updatedData.progress = 0;
-      else if (task.progress === 100) updatedData.progress = 99; 
+      updatedData.status = statusMap[value];
+      if (value === "Đã hoàn thành") updatedData.progress = 100;
+      else if (value === "Chưa thực hiện") updatedData.progress = 0;
+      else if (task.progress === 100) updatedData.progress = 99;
     } else if (field === "progress") {
       const num = Number(value);
+      updatedData.progress = num;
       if (num === 100) updatedData.status = "Done";
       else if (num === 0) updatedData.status = "To Do";
       else if (task.status === "Done" || task.status === "To Do") updatedData.status = "In Progress";
+    } else if (field === "priority") {
+      updatedData.priority = priorityMap[value];
     }
 
     try {
       const res = await updateTask(task._id, updatedData);
-      const updatedTask = res.task;
-      onUpdated(updatedTask);
+      onUpdated(res.task);
     } catch (err) {
       console.error("Lỗi cập nhật task:", err);
     }
   };
 
+  const statusValue = Object.keys(statusMap).find(k => statusMap[k] === task.status) || "Chưa thực hiện";
+  const priorityValue = Object.keys(priorityMap).find(k => priorityMap[k] === task.priority) || "Trung bình";
+
   return (
     <div className="w-80 bg-white rounded-2xl shadow p-6 space-y-6">
-      {/* Status & Priority */}
+      {/* Trạng thái & Độ ưu tiên */}
       <div className="space-y-4">
         <div>
           <label className="text-sm font-semibold text-gray-700 block mb-1">Trạng thái</label>
           <select
-            value={task.status}
+            value={statusValue}
             onChange={(e) => updateField("status", e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <option>To Do</option>
-            <option>In Progress</option>
-            <option>Review</option>
-            <option>Done</option>
+            <option>Chưa thực hiện</option>
+            <option>Đang thực hiện</option>
+            <option>Đã hoàn thành</option>
           </select>
         </div>
 
         <div>
           <label className="text-sm font-semibold text-gray-700 block mb-1">Độ ưu tiên</label>
           <select
-            value={task.priority}
+            value={priorityValue}
             onChange={(e) => updateField("priority", e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <option>Low</option>
-            <option>Medium</option>
-            <option>High</option>
+            <option>Thấp</option>
+            <option>Trung bình</option>
+            <option>Cao</option>
           </select>
         </div>
       </div>
 
-      {/* Progress */}
+      {/* Tiến độ */}
       <div>
-        <label className="text-sm font-semibold text-gray-700 block mb-1">Tiến độ</label>
         <TaskProgressBar
           progress={task.progress}
           onChange={(val) => updateField("progress", val)}
         />
       </div>
 
-      {/* Dates */}
+      {/* Ngày tháng */}
       <div className="border-t pt-4 space-y-2 text-sm text-gray-600">
         <div className="flex justify-between bg-gray-50 p-2 rounded">
           <span className="font-medium text-gray-700">Ngày bắt đầu</span>
@@ -89,7 +105,7 @@ export default function TaskSidebar({ task, onUpdated }) {
         </div>
       </div>
 
-      {/* Users */}
+      {/* Người dùng */}
       <div className="border-t pt-4 space-y-2 text-sm">
         <div className="flex items-center justify-between bg-blue-50 p-3 rounded-lg shadow-sm">
           <div className="flex items-center gap-2">

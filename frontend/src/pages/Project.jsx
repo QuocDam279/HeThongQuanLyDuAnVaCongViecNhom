@@ -4,7 +4,9 @@ import { useNavigate } from "react-router-dom";
 import Menu from "../components/common/Menu";
 import Header from "../components/common/Header";
 import ProjectList from "../components/project/ProjectList";
-import { getMyProjects } from "../services/projectService"; // ✅ Sử dụng hàm có sẵn
+
+import { getMyProjects } from "../services/projectService";
+import { getTasksByProject } from "../services/taskService"; // ⬅ thêm file này
 
 export default function Project() {
   const navigate = useNavigate();
@@ -15,13 +17,27 @@ export default function Project() {
 
   const sidebarWidth = collapsed ? "4rem" : "16rem";
 
-  // ---------- Fetch tất cả project mà user tham gia ----------
   const fetchProjects = async () => {
     setLoading(true);
     setError("");
+
     try {
-      const data = await getMyProjects(); // ✅ sửa từ getAllProjects
-      setProjects(data);
+      // 1. Lấy danh sách project user tham gia
+      const projectList = await getMyProjects();
+
+      // 2. Lấy tasks cho từng project
+      const projectsWithTasks = await Promise.all(
+        projectList.map(async (project) => {
+          try {
+            const tasks = await getTasksByProject(project._id);
+            return { ...project, tasks };
+          } catch {
+            return { ...project, tasks: [] }; // fallback
+          }
+        })
+      );
+
+      setProjects(projectsWithTasks);
     } catch (err) {
       setError(err.message || "Lỗi khi tải danh sách dự án");
     } finally {
@@ -36,8 +52,10 @@ export default function Project() {
   return (
     <div className="bg-white min-h-screen flex">
       <Menu collapsed={collapsed} setCollapsed={setCollapsed} />
+
       <div className="flex-1">
         <Header collapsed={collapsed} sidebarWidth={sidebarWidth} />
+
         <div
           className="pt-24 px-6 space-y-8 transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}

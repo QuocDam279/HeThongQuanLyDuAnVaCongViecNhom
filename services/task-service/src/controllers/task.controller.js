@@ -74,6 +74,17 @@ export const createTask = async (req, res) => {
       console.warn('⚠ Không thể ghi activity log:', logError.message);
     }
 
+    // 🔄 Cập nhật progress project
+    try {
+      await http.project.post(
+        `/${project_id}/recalc-progress`,
+        { progress: undefined }, // Project Service tự tính trung bình task
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (err) {
+      console.warn('⚠ Không thể cập nhật tiến độ project:', err.message);
+    }
+
     res.status(201).json({ message: 'Tạo task thành công', task });
   } catch (error) {
     console.error('❌ Lỗi createTask:', error.message);

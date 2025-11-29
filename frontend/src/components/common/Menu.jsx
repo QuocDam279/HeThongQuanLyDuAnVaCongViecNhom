@@ -26,9 +26,7 @@ export default function Menu({ collapsed, setCollapsed }) {
     >
       {/* Logo + Toggle */}
       <div className="h-16 flex items-center justify-between px-3 bg-blue-200 rounded-br-lg">
-        {/* Logo */}
         {!collapsed && <span className="text-lg font-bold text-blue-600">QD</span>}
-        {/* Toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="p-1 rounded hover:bg-slate-100 transition"
@@ -38,7 +36,7 @@ export default function Menu({ collapsed, setCollapsed }) {
       </div>
 
       {/* Menu items */}
-      <nav className="flex-1 flex flex-col gap-2 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+      <nav className="flex-1 flex flex-col gap-2 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 border-r border-r-blue-200 border-r-dashed rounded-r-md">
         {menuItems.map((item) => (
           <NavLink
             key={item.name}
@@ -61,7 +59,7 @@ export default function Menu({ collapsed, setCollapsed }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-3 py-4 text-sm text-slate-400 border-t flex items-center justify-center gap-2">
+      <div className="px-3 py-4 text-sm text-slate-400 flex items-center justify-center gap-2">
         <span className="w-6 h-[1px] bg-blue-200 rounded-full"></span>
         {!collapsed && "© 2025 QuestDo"}
         <span className="w-6 h-[1px] bg-blue-200 rounded-full"></span>

@@ -20,14 +20,18 @@ export default function CreateProjectButton({ teamId, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!formData.project_name.trim()) return setError("Tên dự án không được bỏ trống");
+
+    if (!formData.project_name.trim())
+      return setError("Tên dự án không được bỏ trống");
 
     try {
       setLoading(true);
       const res = await createProject({ team_id: teamId, ...formData });
+
       setFormData({ project_name: "", description: "", start_date: "", end_date: "" });
       setShowForm(false);
-      if (onCreated) onCreated(res.project); // callback để parent cập nhật danh sách
+
+      if (onCreated) onCreated(res.project);
     } catch (err) {
       setError(err.message || "Tạo dự án thất bại");
     } finally {
@@ -36,8 +40,9 @@ export default function CreateProjectButton({ teamId, onCreated }) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6">
-      {/* Nút nổi */}
+    <div className="fixed bottom-6 right-6 z-50">
+
+      {/* Floating button */}
       <button
         onClick={() => setShowForm(true)}
         className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition"
@@ -46,57 +51,63 @@ export default function CreateProjectButton({ teamId, onCreated }) {
         Tạo dự án
       </button>
 
-      {/* Form popup */}
+      {/* Popup nhỏ gọn */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 relative">
-            <h3 className="text-xl font-semibold mb-4">Tạo dự án mới</h3>
-            {error && <p className="text-red-500 mb-2">{error}</p>}
-            <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="absolute bottom-14 right-0">
+          <div className="bg-white border border-gray-200 shadow-xl rounded-xl p-4 w-80 animate-fadeIn">
+            <h3 className="text-lg font-semibold mb-2">Tạo dự án</h3>
+
+            {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+
+            <form onSubmit={handleSubmit} className="space-y-2">
+
               <input
                 type="text"
                 name="project_name"
                 value={formData.project_name}
                 onChange={handleChange}
                 placeholder="Tên dự án"
-                className="w-full border px-3 py-2 rounded"
-                required
+                className="w-full border px-2 py-1.5 rounded text-sm"
               />
+
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
                 placeholder="Mô tả"
-                className="w-full border px-3 py-2 rounded"
+                className="w-full border px-2 py-1.5 rounded text-sm"
               />
+
               <div className="flex gap-2">
                 <input
                   type="date"
                   name="start_date"
                   value={formData.start_date}
                   onChange={handleChange}
-                  className="w-1/2 border px-3 py-2 rounded"
+                  className="w-1/2 border px-2 py-1.5 rounded text-sm"
                 />
                 <input
                   type="date"
                   name="end_date"
                   value={formData.end_date}
                   onChange={handleChange}
-                  className="w-1/2 border px-3 py-2 rounded"
+                  className="w-1/2 border px-2 py-1.5 rounded text-sm"
                 />
               </div>
-              <div className="flex justify-end gap-2 mt-3">
+
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-3 py-1.5 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-3 py-1.5 text-sm bg-gray-200 rounded hover:bg-gray-300"
                 >
                   Hủy
                 </button>
+
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   {loading ? "Đang tạo..." : "Tạo"}
                 </button>

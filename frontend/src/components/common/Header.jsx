@@ -93,7 +93,7 @@ export default function Header({ collapsed }) {
       </div>
 
       {/* Bottom subtle border */}
-      <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 shadow-sm rounded-t-full"></div>
+      <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-200 rounded-t-full"></div>
     </header>
   );
 }
