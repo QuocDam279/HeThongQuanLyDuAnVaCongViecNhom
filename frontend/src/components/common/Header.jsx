@@ -22,7 +22,7 @@ export default function Header({ collapsed }) {
 
   return (
     <header
-      className="fixed top-0 bg-white px-4 py-2 flex items-center h-14 w-[calc(100%-var(--sidebar-width))] transition-all duration-300 z-50 rounded-br-2xl border-b border-slate-200"
+      className="fixed top-0 bg-white px-4 py-2 flex items-center h-14 w-[calc(100%-var(--sidebar-width))] transition-all duration-300 z-50 rounded-br-2xl  border-slate-200"
       style={{ left: sidebarWidth, "--sidebar-width": sidebarWidth }}
     >
       {/* Left: Logo + Star animation */}
@@ -93,7 +93,7 @@ export default function Header({ collapsed }) {
       </div>
 
       {/* Bottom subtle border */}
-      <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-200 rounded-t-full"></div>
+      <div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-200 rounded-t-full"></div>
     </header>
   );
 }

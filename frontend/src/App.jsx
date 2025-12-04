@@ -9,6 +9,7 @@ import Project from "./pages/Project";
 import ProjectDetail from "./pages/ProjectDetail";
 import Task from "./pages/Task";
 import TaskDetail from "./pages/TaskDetail";
+import Activity from "./pages/Activity";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("token");
@@ -33,6 +34,10 @@ function App() {
 
       <Route path="/congviec" element={<RequireAuth><Task /></RequireAuth>} />
       <Route path="/congviec/:id" element={<RequireAuth><TaskDetail /></RequireAuth>} />
+
+      <Route path="/nhatkyhoatdong" element={<RequireAuth><Activity /></RequireAuth>} />
+
+
 
     </Routes>
   );

@@ -9,10 +9,14 @@ import {
   deleteProject,
   getMyProjects,
   updateProjectStatus,
-  recalcProjectProgress
+  recalcProjectProgress,
+  batchGetProjects
 } from '../controllers/project.controller.js';
 
 const router = express.Router();
+
+// 📦 Batch endpoint - KHÔNG CẦN AUTH (cho internal service)
+router.get('/batch', batchGetProjects); // ← BỎ verifyToken
 
 // 🧱 Tạo dự án mới
 router.post('/', verifyToken, createProject);
@@ -34,8 +38,8 @@ router.delete('/:id', verifyToken, deleteProject);
 
 // 🔄 Cập nhật trạng thái dự án
 router.patch('/:id/status', verifyToken, updateProjectStatus);
+
 // 🔄 Tính lại tiến độ dự án
 router.post('/:id/recalc-progress', verifyToken, recalcProjectProgress);
-
 
 export default router;

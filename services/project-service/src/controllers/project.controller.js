@@ -1,6 +1,7 @@
 // controllers/project.controller.js
 import Project from '../models/Project.js';
 import http from '../utils/httpClient.js';
+import ActivityLogger from '../utils/activityLogger.js';
 
 /**
  * 🧱 Tạo project mới
@@ -20,20 +21,12 @@ export const createProject = async (req, res) => {
     });
 
     // 🧾 Ghi log hoạt động
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: created_by,
-          action: `Tạo dự án mới: ${project_name}`,
-          related_id: project._id,
-          related_type: 'project'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logErr) {
-      console.warn('⚠ Không thể ghi activity log (createProject):', logErr.message);
-    }
+    await ActivityLogger.logProjectCreated(
+      created_by, 
+      project._id, 
+      project_name, 
+      req.headers.authorization
+    );
 
     res.status(201).json({ message: 'Tạo dự án thành công', project });
   } catch (error) {
@@ -119,20 +112,12 @@ export const updateProject = async (req, res) => {
     await project.save();
 
     // 🧾 Ghi log hoạt động
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: req.user.id,
-          action: `Cập nhật dự án: ${project.project_name}`,
-          related_id: project._id,
-          related_type: 'project'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logErr) {
-      console.warn('⚠ Không thể ghi activity log (updateProject):', logErr.message);
-    }
+    await ActivityLogger.logProjectUpdated(
+      req.user.id,
+      project._id,
+      project.project_name,
+      req.headers.authorization
+    );
 
     res.json({ message: 'Cập nhật dự án thành công', project });
   } catch (error) {
@@ -153,21 +138,15 @@ export const deleteProject = async (req, res) => {
     if (project.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền xóa dự án này' });
 
-    // 🧾 Ghi log trước khi xóa (để lưu lại tên dự án)
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: req.user.id,
-          action: `Xóa dự án: ${project.project_name}`,
-          related_id: project._id,
-          related_type: 'project'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logErr) {
-      console.warn('⚠ Không thể ghi activity log (deleteProject):', logErr.message);
-    }
+    const projectName = project.project_name;
+
+    // 🧾 Ghi log trước khi xóa
+    await ActivityLogger.logProjectDeleted(
+      req.user.id,
+      project._id,
+      projectName,
+      req.headers.authorization
+    );
 
     await project.deleteOne();
 
@@ -212,7 +191,6 @@ export const updateProjectStatus = async (req, res) => {
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: 'Không tìm thấy dự án' });
 
-    // ❗ Chỉ người tạo mới có quyền đổi status (tuỳ bạn muốn nới lỏng hay không)
     if (project.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền đổi trạng thái dự án này' });
 
@@ -222,20 +200,14 @@ export const updateProjectStatus = async (req, res) => {
     await project.save();
 
     // 🧾 Ghi activity log
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: req.user.id,
-          action: `Thay đổi trạng thái dự án: ${project.project_name} (${oldStatus} → ${status})`,
-          related_id: project._id,
-          related_type: 'project'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logErr) {
-      console.warn('⚠ Không thể ghi activity log (updateProjectStatus):', logErr.message);
-    }
+    await ActivityLogger.logProjectStatusChanged(
+      req.user.id,
+      project._id,
+      project.project_name,
+      oldStatus,
+      status,
+      req.headers.authorization
+    );
 
     res.json({ message: 'Cập nhật trạng thái thành công', project });
   } catch (error) {
@@ -244,33 +216,43 @@ export const updateProjectStatus = async (req, res) => {
   }
 };
 
-//cập nhật tiến độ dự án
+/**
+ * 🔢 Cập nhật tiến độ dự án
+ */
 export const recalcProjectProgress = async (req, res) => {
   try {
     const { id: projectId } = req.params;
 
-    // ✅ Gọi đúng route
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: 'Không tìm thấy dự án' });
+
+    // ✅ Gọi Task Service để lấy tasks
     const { data: tasks } = await http.task.get(`/project/${projectId}`, {
       headers: { Authorization: req.headers.authorization }
     });
 
+    let avgProgress = 0;
+    
     if (!tasks || tasks.length === 0) {
-      const updated = await Project.findByIdAndUpdate(
-        projectId,
-        { progress: 0, updated_at: new Date() },
-        { new: true }
-      );
-      return res.json({ progress: 0, project: updated });
+      avgProgress = 0;
+    } else {
+      const totalProgress = tasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+      avgProgress = Math.round(totalProgress / tasks.length);
     }
-
-    // 🧮 Tính trung bình progress
-    const totalProgress = tasks.reduce((sum, t) => sum + (t.progress || 0), 0);
-    const avgProgress = Math.round(totalProgress / tasks.length);
 
     const updated = await Project.findByIdAndUpdate(
       projectId,
       { progress: avgProgress, updated_at: new Date() },
       { new: true }
+    );
+
+    // 🧾 Ghi log
+    await ActivityLogger.logProjectProgressUpdated(
+      req.user.id,
+      projectId,
+      project.project_name,
+      avgProgress,
+      req.headers.authorization
     );
 
     res.json({ progress: avgProgress, project: updated });
@@ -283,3 +265,37 @@ export const recalcProjectProgress = async (req, res) => {
   }
 };
 
+/**
+ * 📦 Batch endpoint - để activity service gọi
+ */
+export const batchGetProjects = async (req, res) => {
+  try {
+    const { ids } = req.query;
+    
+    if (!ids) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing ids parameter' 
+      });
+    }
+    
+    const idArray = ids.split(',').filter(id => id.trim());
+    
+    if (idArray.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    const projects = await Project.find({ _id: { $in: idArray } })
+      .select('project_name description status progress created_by created_at')
+      .lean();
+    
+    res.json({ success: true, data: projects });
+  } catch (error) {
+    console.error('❌ Error in batch fetch projects:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching projects', 
+      error: error.message 
+    });
+  }
+};

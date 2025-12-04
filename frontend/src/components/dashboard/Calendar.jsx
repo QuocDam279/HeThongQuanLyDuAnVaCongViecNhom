@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const months = [
   "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
@@ -11,6 +12,7 @@ export default function Calendar({ tasks = [] }) {
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDay, setSelectedDay] = useState(null);
+  const navigate = useNavigate();
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -213,44 +215,49 @@ export default function Calendar({ tasks = [] }) {
             {selectedDayTasks.length > 0 ? (
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {selectedDayTasks.map((task) => {
-                  const statusColors = {
-                    "To Do": "border-l-yellow-500 bg-yellow-50",
-                    "In Progress": "border-l-blue-500 bg-blue-50",
-                    "Done": "border-l-pink-500 bg-pink-50",
-                  };
-                  const dotColors = {
-                    "To Do": "bg-yellow-500",
-                    "In Progress": "bg-blue-500",
-                    "Done": "bg-pink-500",
-                  };
-                  const statusText = {
-                    "To Do": "Chưa thực hiện",
-                    "In Progress": "Đang thực hiện",
-                    "Done": "Đã hoàn thành",
-                  };
+                const statusColors = {
+                  "To Do": "border-l-yellow-500 bg-yellow-50",
+                  "In Progress": "border-l-blue-500 bg-blue-50",
+                  "Done": "border-l-pink-500 bg-pink-50",
+                };
+                const dotColors = {
+                  "To Do": "bg-yellow-500",
+                  "In Progress": "bg-blue-500",
+                  "Done": "bg-pink-500",
+                };
+                const statusText = {
+                  "To Do": "Chưa thực hiện",
+                  "In Progress": "Đang thực hiện",
+                  "Done": "Đã hoàn thành",
+                };
 
-                  return (
-                    <div
-                      key={task.id}
-                      className={`p-3 rounded-lg border-l-4 ${statusColors[task.status]} transition-transform hover:scale-105`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className={`w-2 h-2 rounded-full ${dotColors[task.status]} mt-1.5 flex-shrink-0`}></div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800 text-sm">
-                            {task.task_name || task.title}
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {task.start_date?.slice(0, 10)} → {task.due_date?.slice(0, 10)}
-                          </div>
-                          <div className="text-xs font-medium text-gray-500 mt-1">
-                            {statusText[task.status] || task.status}
-                          </div>
+                return (
+                  <div
+                    key={task._id}
+                    onClick={() => navigate(`/congviec/${task._id}`)}
+                    className={`
+                      p-3 rounded-lg border-l-4 cursor-pointer 
+                      ${statusColors[task.status]} 
+                      transition-transform hover:shadow
+                    `}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className={`w-2 h-2 rounded-full ${dotColors[task.status]} mt-1.5 flex-shrink-0`}></div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-800 text-sm">
+                          {task.task_name}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          {task.start_date?.slice(0, 10)} → {task.due_date?.slice(0, 10)}
+                        </div>
+                        <div className="text-xs font-medium text-gray-500 mt-1">
+                          {statusText[task.status]}
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
               </div>
             ) : (
               <div className="text-center text-gray-500 py-8">

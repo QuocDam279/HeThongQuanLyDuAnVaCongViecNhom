@@ -7,7 +7,7 @@ export function HeaderTeam({ onCreate, searchValue, setSearchValue }) {
     <div className="mb-6">
       {/* Header chính */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
           <Users size={24} /> Nhóm
         </h2>
         <button

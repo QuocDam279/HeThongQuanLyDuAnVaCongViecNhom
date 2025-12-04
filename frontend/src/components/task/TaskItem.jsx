@@ -54,12 +54,6 @@ export default function TaskItem({ task, onTaskUpdated, hideStatus = false }) {
         </div>
       </div>
 
-      {task.description && (
-        <p className="text-gray-700 text-xs mt-1 line-clamp-2">
-          {task.description}
-        </p>
-      )}
-
       <div className="mt-2">
         <div className="flex justify-between items-center mb-1 text-[10px]">
           <span className="text-gray-600 font-medium">Tiến độ</span>

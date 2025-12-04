@@ -60,7 +60,7 @@ export default function Project() {
           className="pt-24 px-6 space-y-8 transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
-          <h1 className="text-2xl font-semibold mb-4">Danh sách dự án</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Danh sách dự án</h1>
 
           {loading ? (
             <p>Đang tải dự án...</p>

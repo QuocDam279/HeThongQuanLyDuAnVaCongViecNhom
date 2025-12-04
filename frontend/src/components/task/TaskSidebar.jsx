@@ -1,9 +1,29 @@
 // src/components/task/TaskSidebar.jsx
-import React from "react";
+import React, { useState } from "react";
+import { Calendar, Lock } from "lucide-react";
 import TaskProgressBar from "./TaskProgressBar";
 import { updateTask } from "../../services/taskService";
 
-export default function TaskSidebar({ task, onUpdated }) {
+export default function TaskSidebar({ task, onUpdated, currentUser }) {
+  const [editingDate, setEditingDate] = useState(null);
+
+  // Kiểm tra quyền chỉnh sửa
+  const canEdit = () => {
+    if (!currentUser) return false;
+    
+    // Leader có quyền sửa tất cả
+    if (currentUser.role === "Leader") return true;
+    
+    // Người được giao task có quyền sửa
+    if (task.assigned_to?._id === currentUser._id || task.assigned_to === currentUser._id) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const hasEditPermission = canEdit();
+
   // Map giữa tiếng Việt và giá trị backend
   const statusMap = {
     "Chưa thực hiện": "To Do",
@@ -18,6 +38,11 @@ export default function TaskSidebar({ task, onUpdated }) {
   };
 
   const updateField = async (field, value) => {
+    if (!hasEditPermission) {
+      alert("Bạn không có quyền chỉnh sửa task này!");
+      return;
+    }
+
     const updatedData = {};
 
     if (field === "status") {
@@ -33,21 +58,39 @@ export default function TaskSidebar({ task, onUpdated }) {
       else if (task.status === "Done" || task.status === "To Do") updatedData.status = "In Progress";
     } else if (field === "priority") {
       updatedData.priority = priorityMap[value];
+    } else if (field === "start_date" || field === "due_date") {
+      updatedData[field] = value;
     }
 
     try {
       const res = await updateTask(task._id, updatedData);
       onUpdated(res.task);
+      setEditingDate(null);
     } catch (err) {
       console.error("Lỗi cập nhật task:", err);
+      alert("Không thể cập nhật task. Vui lòng thử lại!");
     }
   };
 
   const statusValue = Object.keys(statusMap).find(k => statusMap[k] === task.status) || "Chưa thực hiện";
   const priorityValue = Object.keys(priorityMap).find(k => priorityMap[k] === task.priority) || "Trung bình";
 
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    return date.toISOString().split('T')[0];
+  };
+
   return (
     <div className="w-80 bg-white rounded-2xl shadow p-6 space-y-6">
+      {/* Thông báo quyền hạn */}
+      {!hasEditPermission && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2 text-sm text-yellow-800">
+          <Lock className="w-4 h-4" />
+          <span>Bạn chỉ có quyền xem task này</span>
+        </div>
+      )}
+
       {/* Trạng thái & Độ ưu tiên */}
       <div className="space-y-4">
         <div>
@@ -55,7 +98,10 @@ export default function TaskSidebar({ task, onUpdated }) {
           <select
             value={statusValue}
             onChange={(e) => updateField("status", e.target.value)}
-            className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            disabled={!hasEditPermission}
+            className={`w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              !hasEditPermission ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+            }`}
           >
             <option>Chưa thực hiện</option>
             <option>Đang thực hiện</option>
@@ -68,7 +114,10 @@ export default function TaskSidebar({ task, onUpdated }) {
           <select
             value={priorityValue}
             onChange={(e) => updateField("priority", e.target.value)}
-            className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            disabled={!hasEditPermission}
+            className={`w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              !hasEditPermission ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+            }`}
           >
             <option>Thấp</option>
             <option>Trung bình</option>
@@ -82,23 +131,77 @@ export default function TaskSidebar({ task, onUpdated }) {
         <TaskProgressBar
           progress={task.progress}
           onChange={(val) => updateField("progress", val)}
+          disabled={!hasEditPermission}
         />
       </div>
 
-      {/* Ngày tháng */}
+      {/* Ngày tháng - Có thể chỉnh sửa */}
       <div className="border-t pt-4 space-y-2 text-sm text-gray-600">
-        <div className="flex justify-between bg-gray-50 p-2 rounded">
+        {/* Ngày bắt đầu */}
+        <div className={`flex justify-between items-center bg-gray-50 p-2 rounded transition-colors ${
+          hasEditPermission ? "hover:bg-gray-100 group" : ""
+        }`}>
           <span className="font-medium text-gray-700">Ngày bắt đầu</span>
-          <span>{task.start_date ? new Date(task.start_date).toLocaleDateString() : "-"}</span>
+          {editingDate === "start_date" && hasEditPermission ? (
+            <input
+              type="date"
+              value={formatDateForInput(task.start_date)}
+              onChange={(e) => updateField("start_date", e.target.value)}
+              onBlur={() => setEditingDate(null)}
+              autoFocus
+              className="border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          ) : (
+            <div
+              onClick={() => hasEditPermission && setEditingDate("start_date")}
+              className={hasEditPermission ? "cursor-pointer hover:text-blue-600 flex items-center gap-1" : "flex items-center gap-1"}
+            >
+              <span>
+                {task.start_date ? new Date(task.start_date).toLocaleDateString() : "Chưa có"}
+              </span>
+              {hasEditPermission && (
+                <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex justify-between bg-gray-50 p-2 rounded">
+
+        {/* Hạn hoàn thành */}
+        <div className={`flex justify-between items-center bg-gray-50 p-2 rounded transition-colors ${
+          hasEditPermission ? "hover:bg-gray-100 group" : ""
+        }`}>
           <span className="font-medium text-gray-700">Hạn hoàn thành</span>
-          <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : "-"}</span>
+          {editingDate === "due_date" && hasEditPermission ? (
+            <input
+              type="date"
+              value={formatDateForInput(task.due_date)}
+              onChange={(e) => updateField("due_date", e.target.value)}
+              onBlur={() => setEditingDate(null)}
+              autoFocus
+              className="border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          ) : (
+            <div
+              onClick={() => hasEditPermission && setEditingDate("due_date")}
+              className={hasEditPermission ? "cursor-pointer hover:text-blue-600 flex items-center gap-1" : "flex items-center gap-1"}
+            >
+              <span>
+                {task.due_date ? new Date(task.due_date).toLocaleDateString() : "Chưa có"}
+              </span>
+              {hasEditPermission && (
+                <Calendar className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Ngày tạo - Chỉ hiển thị */}
         <div className="flex justify-between bg-gray-50 p-2 rounded">
           <span className="font-medium text-gray-700">Ngày tạo</span>
           <span>{task.created_at ? new Date(task.created_at).toLocaleString() : "-"}</span>
         </div>
+
+        {/* Cập nhật - Chỉ hiển thị */}
         <div className="flex justify-between bg-gray-50 p-2 rounded">
           <span className="font-medium text-gray-700">Cập nhật</span>
           <span>{task.updated_at ? new Date(task.updated_at).toLocaleString() : "-"}</span>

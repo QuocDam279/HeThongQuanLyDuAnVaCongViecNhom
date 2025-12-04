@@ -2,15 +2,14 @@
 import React, { useState, useEffect } from "react";
 import Menu from "../components/common/Menu";
 import Header from "../components/common/Header";
-import TaskStats from "../components/task/TaskStats";
 import TaskDragDrop from "../components/task/TaskDragDrop";
-import TaskItem from "../components/task/TaskItem"; // Import TaskItem có sẵn
+import TaskItem from "../components/task/TaskItem";
 import { getMyTasks, getTaskStats, updateTask } from "../services/taskService";
 
 export default function Task() {
   const [collapsed, setCollapsed] = useState(false);
   const [tasks, setTasks] = useState([]);
-  const [stats, setStats] = useState([]);
+  const [stats, setStats] = useState(null); // ✅ Thêm state stats
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,6 +23,7 @@ export default function Task() {
       setTasks(data);
     } catch (err) {
       setError("Lỗi khi tải công việc");
+      console.error("Error fetching tasks:", err);
     } finally {
       setLoading(false);
     }
@@ -33,16 +33,19 @@ export default function Task() {
     try {
       const data = await getTaskStats();
       setStats(data);
-    } catch {}
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
   };
 
   const handleTaskUpdated = async (taskId, payload) => {
     try {
       await updateTask(taskId, payload);
-      await fetchTasks();
-      await fetchStats();
+      // Fetch lại cả tasks và stats sau khi update
+      await Promise.all([fetchTasks(), fetchStats()]);
     } catch (err) {
       setError("Lỗi khi cập nhật công việc");
+      console.error("Error updating task:", err);
       throw err;
     }
   };
@@ -63,7 +66,9 @@ export default function Task() {
           className="pt-24 px-6 space-y-8 transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
-          <h1 className="text-3xl font-bold mb-2">Công việc của tôi</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            Công việc của tôi
+          </h1>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -79,7 +84,7 @@ export default function Task() {
             <TaskDragDrop 
               tasks={tasks} 
               onTaskUpdated={handleTaskUpdated}
-              TaskItemComponent={TaskItem} // Truyền TaskItem component
+              TaskItemComponent={TaskItem}
             />
           )}
         </div>

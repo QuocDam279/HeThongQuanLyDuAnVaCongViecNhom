@@ -8,6 +8,7 @@ import TaskList from "../components/task/TaskList";
 import CreateTaskButton from "../components/task/CreateTaskButton";
 import { getProjectById } from "../services/projectService";
 import { getTasksByProject } from "../services/taskService";
+import { Users } from "lucide-react";
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -74,19 +75,23 @@ export default function ProjectDetail() {
           className="pt-24 px-6 space-y-8 transition-all duration-300 mb-10"
           style={{ marginLeft: sidebarWidth }}
         >
-          {/* Breadcrumb */}
-          <div className="text-sm text-gray-500 mb-4 flex items-center gap-2">
-            <Link to="/duan" className="hover:text-blue-600 transition-colors">
-              Dự án
-            </Link>
-            <span className="mx-1 text-gray-400">→</span>
-            <span
-              className="text-gray-700 font-medium max-w-xs truncate"
-              title={project.project_name}
-            >
-              {project.project_name}
+        {/* Breadcrumb */}
+        <div className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+
+          <Link
+            to={`/nhom/${project.team?._id}`}
+            className="group hover:text-blue-600 flex items-center gap-1.5 transition-colors"
+          >
+            <Users
+              size={14}
+              className="text-gray-500 group-hover:text-blue-600 transition-colors"
+            />
+            <span className="font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
+              {project.team?.team_name || "Không xác định"}
             </span>
-          </div>
+          </Link>
+
+        </div>
 
           {/* Project info */}
           <ProjectInfo project={project} />

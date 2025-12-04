@@ -11,6 +11,7 @@ import CreateProjectButton from "../components/project/CreateProjectButton";
 import { getTeamById } from "../services/teamService";
 import { getProjectsByTeam } from "../services/projectService";
 import { getTasksByProject } from "../services/taskService";
+import { ArrowLeft } from "lucide-react";
 
 export default function TeamDetail() {
   const { id } = useParams();
@@ -97,19 +98,17 @@ export default function TeamDetail() {
             <p className="text-red-500">{error}</p>
           ) : team ? (
             <>
-              {/* Breadcrumb */}
-              <div className="text-sm text-gray-500 mb-4 flex items-center gap-1">
-                <Link
-                  to="/nhom"
-                  className="hover:text-blue-600 transition-colors font-medium"
-                >
-                  Nhóm
-                </Link>
-                <span className="mx-1 text-gray-400">→</span>
-                <span className="font-medium text-gray-700">
-                  {team.team.team_name}
-                </span>
-              </div>
+            {/* Breadcrumb */}
+            <div className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+              {/* Icon quay lại */}
+              <Link
+                to="/nhom"
+                className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+              >
+                <ArrowLeft size={16} />
+                <span className="font-medium">Nhóm</span>
+              </Link>
+            </div>
 
               {/* TeamInfo kèm TeamActions */}
               <TeamInfo

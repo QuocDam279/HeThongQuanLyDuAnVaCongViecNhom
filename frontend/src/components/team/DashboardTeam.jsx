@@ -1,6 +1,6 @@
 // src/components/team/DashboardTeam.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { HeaderTeam } from "./HeaderTeam"; // ✅ vẫn dùng HeaderTeam nhưng bỏ nút member
+import { HeaderTeam } from "./HeaderTeam";
 import AddTeamForm from "./AddTeamForm";
 import ViewToggle from "./ViewToggle";
 import TeamGrid from "./TeamGrid";
@@ -18,7 +18,7 @@ export default function DashboardTeam() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 🔹 Hàm bỏ dấu tiếng Việt và lowercase
+  // 🔹 Bỏ dấu tiếng Việt
   const removeVietnameseTone = (str) =>
     str
       ?.normalize("NFD")
@@ -27,13 +27,16 @@ export default function DashboardTeam() {
       .replace(/Đ/g, "D")
       .toLowerCase();
 
-  // 🔹 Load tất cả team user tham gia
-  const fetchAllTeams = async () => {
+  // 🔹 Hàm load team theo loại tab
+  const loadTeams = async () => {
     try {
       setLoading(true);
-      const data = await getMyTeams();
-      setTeams(data || []);
       setError("");
+
+      const data =
+        activeTab === "all" ? await getMyTeams() : await getLeaderTeams();
+
+      setTeams(data || []);
     } catch (err) {
       setError("Không thể tải danh sách nhóm");
     } finally {
@@ -41,28 +44,18 @@ export default function DashboardTeam() {
     }
   };
 
-  // 🔹 Load team user là leader
-  const fetchLeaderTeams = async () => {
-    try {
-      setLoading(true);
-      const data = await getLeaderTeams();
-      setTeams(data || []);
-      setError("");
-    } catch (err) {
-      setError("Không thể tải nhóm của bạn");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 🔹 Gọi lại khi đổi tab
   useEffect(() => {
-    activeTab === "all" ? fetchAllTeams() : fetchLeaderTeams();
+    loadTeams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // 🔹 Filter teams chỉ theo tên + mô tả
+  // 🔹 Filter team theo tên + mô tả
   const filteredTeams = useMemo(() => {
-    if (!searchValue.trim()) return teams;
     const query = removeVietnameseTone(searchValue.trim());
+
+    if (!query) return teams;
+
     return teams.filter((team) => {
       const name = removeVietnameseTone(team.team_name);
       const desc = removeVietnameseTone(team.description || "");
@@ -83,9 +76,7 @@ export default function DashboardTeam() {
       {showForm && (
         <AddTeamForm
           onClose={() => setShowForm(false)}
-          onCreated={() =>
-            activeTab === "all" ? fetchAllTeams() : fetchLeaderTeams()
-          }
+          onCreated={loadTeams}
         />
       )}
 
@@ -125,6 +116,10 @@ export default function DashboardTeam() {
         <p className="text-gray-600">Đang tải danh sách nhóm...</p>
       ) : error ? (
         <p className="text-red-500">{error}</p>
+      ) : filteredTeams.length === 0 ? (
+        <p className="text-gray-500 italic mt-4">
+          Không có nhóm nào phù hợp.
+        </p>
       ) : view === "grid" ? (
         <TeamGrid teams={filteredTeams} />
       ) : (

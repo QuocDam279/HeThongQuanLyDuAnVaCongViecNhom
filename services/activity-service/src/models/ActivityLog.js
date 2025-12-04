@@ -1,10 +1,12 @@
+// models/ActivityLog.js
 import mongoose from 'mongoose';
 
 const activityLogSchema = new mongoose.Schema({
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
   action: {
     type: String,
@@ -13,7 +15,8 @@ const activityLogSchema = new mongoose.Schema({
   },
   related_id: {
     type: mongoose.Schema.Types.ObjectId,
-    required: false
+    required: false,
+    index: true
   },
   related_type: {
     type: String,
@@ -26,7 +29,11 @@ const activityLogSchema = new mongoose.Schema({
   }
 });
 
-activityLogSchema.index({ user_id: 1 });
-activityLogSchema.index({ related_id: 1 });
+// Compound indexes for better performance
+activityLogSchema.index({ user_id: 1, created_at: -1 });
+activityLogSchema.index({ related_id: 1, related_type: 1 });
+
+// TTL index - tự động xóa logs cũ hơn 90 ngày (7776000 giây)
+activityLogSchema.index({ created_at: 1 }, { expireAfterSeconds: 7776000 });
 
 export default mongoose.models.ActivityLog || mongoose.model('ActivityLog', activityLogSchema);

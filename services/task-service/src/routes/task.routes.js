@@ -1,3 +1,4 @@
+// routes/task.routes.js
 import express from 'express';
 import mongoose from 'mongoose';
 import Task from '../models/Task.js';
@@ -10,10 +11,17 @@ import {
   deleteTask,
   getTaskStatsByProject,
   getMyTasks,
-  getAllTasks
+  getAllTasks,
+  batchGetTasks
 } from '../controllers/task.controller.js';
 
 const router = express.Router();
+
+/**
+ * 📦 Batch endpoint - KHÔNG CẦN AUTH (cho internal service)
+ * GET /api/tasks/batch?ids=id1,id2,id3
+ */
+router.get('/batch', batchGetTasks);
 
 /**
  * 🧱 Tạo công việc mới

@@ -1,7 +1,8 @@
-// src/controllers/task.controller.js
+// controllers/task.controller.js
 import mongoose from 'mongoose';
 import Task from '../models/Task.js';
 import http from '../utils/httpClient.js';
+import ActivityLogger from '../utils/activityLogger.js';
 
 /**
  * 🧱 Tạo task mới
@@ -22,63 +23,102 @@ export const createTask = async (req, res) => {
 
     const created_by = req.user.id;
 
-    // Kiểm tra ngày hợp lệ
-    if (start_date && due_date && new Date(start_date) > new Date(due_date)) {
-      return res.status(400).json({ message: 'Ngày kết thúc phải sau ngày bắt đầu' });
-    }
-
-    // 1️⃣ Lấy project để biết team_id
+    // ✅ 1️⃣ Lấy project để kiểm tra team_id và ngày tháng
     const { data: project } = await http.project.get(`/${project_id}`, {
       headers: { Authorization: req.headers.authorization }
     });
-    if (!project || !project.team_id)
+    
+    if (!project || !project.team_id) {
       return res.status(400).json({ message: 'Không tìm thấy dự án hoặc team_id' });
+    }
 
-    // 2️⃣ Lấy danh sách thành viên team
+    // ✅ Kiểm tra ngày task hợp lệ
+    const taskStartDate = start_date ? new Date(start_date) : null;
+    const taskDueDate = due_date ? new Date(due_date) : null;
+    const projectStartDate = project.start_date ? new Date(project.start_date) : null;
+    const projectEndDate = project.end_date ? new Date(project.end_date) : null;
+
+    // Kiểm tra: Ngày kết thúc phải sau ngày bắt đầu
+    if (taskStartDate && taskDueDate && taskStartDate > taskDueDate) {
+      return res.status(400).json({ 
+        message: 'Ngày kết thúc phải sau ngày bắt đầu',
+        start_date: start_date,
+        due_date: due_date
+      });
+    }
+
+    // Kiểm tra: Ngày bắt đầu task không được trước ngày bắt đầu project
+    if (taskStartDate && projectStartDate && taskStartDate < projectStartDate) {
+      return res.status(400).json({ 
+        message: 'Ngày bắt đầu task không được trước ngày bắt đầu dự án',
+        task_start_date: start_date,
+        project_start_date: project.start_date
+      });
+    }
+
+    // Kiểm tra: Ngày kết thúc task không được sau ngày kết thúc project
+    if (taskDueDate && projectEndDate && taskDueDate > projectEndDate) {
+      return res.status(400).json({ 
+        message: 'Ngày kết thúc task không được sau ngày kết thúc dự án',
+        task_due_date: due_date,
+        project_end_date: project.end_date
+      });
+    }
+
+    // Kiểm tra: Nếu task có start_date mà project chưa có start_date
+    if (taskStartDate && !projectStartDate) {
+      return res.status(400).json({ 
+        message: 'Dự án chưa có ngày bắt đầu, không thể gán ngày cho task'
+      });
+    }
+
+    // Kiểm tra: Nếu task có due_date mà project chưa có end_date
+    if (taskDueDate && !projectEndDate) {
+      return res.status(400).json({ 
+        message: 'Dự án chưa có ngày kết thúc, không thể gán deadline cho task'
+      });
+    }
+
+    // ✅ 2️⃣ Lấy danh sách thành viên team
     const { data: teamData } = await http.team.get(`/${project.team_id}`, {
       headers: { Authorization: req.headers.authorization }
     });
     const memberIds = teamData.members.map(m => m.user_id.toString());
 
-    // 3️⃣ Kiểm tra xem assigned_to có thuộc team không
-    if (!memberIds.includes(assigned_to))
-      return res.status(403).json({ message: 'Người được giao không thuộc team của dự án này' });
+    // ✅ 3️⃣ Kiểm tra xem assigned_to có thuộc team không
+    if (!memberIds.includes(assigned_to)) {
+      return res.status(403).json({ 
+        message: 'Người được giao không thuộc team của dự án này' 
+      });
+    }
 
-    // 4️⃣ Tạo task
+    // ✅ 4️⃣ Tạo task
     const task = await Task.create({
       project_id,
       task_name,
       description,
       assigned_to,
       created_by,
-      start_date: start_date || null,
-      due_date: due_date || null,
+      start_date: taskStartDate || null,
+      due_date: taskDueDate || null,
       priority,
       status,
       progress
     });
 
     // 🧾 Ghi log hoạt động
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: created_by,
-          action: `Tạo công việc mới: ${task_name}`,
-          related_id: task._id,
-          related_type: 'task'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logError) {
-      console.warn('⚠ Không thể ghi activity log:', logError.message);
-    }
+    await ActivityLogger.logTaskCreated(
+      created_by,
+      task._id,
+      task_name,
+      req.headers.authorization
+    );
 
     // 🔄 Cập nhật progress project
     try {
       await http.project.post(
         `/${project_id}/recalc-progress`,
-        { progress: undefined }, // Project Service tự tính trung bình task
+        {},
         { headers: { Authorization: req.headers.authorization } }
       );
     } catch (err) {
@@ -151,38 +191,92 @@ export const updateTask = async (req, res) => {
       assigned_to
     } = req.body;
 
+    // ✅ 1️⃣ Tìm task
     const task = await Task.findById(id);
-    if (!task)
+    if (!task) {
       return res.status(404).json({ message: 'Không tìm thấy công việc' });
+    }
 
-    // Chỉ người tạo hoặc người được giao mới được sửa
+    // ✅ 2️⃣ Kiểm tra quyền sửa
     if (
       task.created_by.toString() !== req.user.id &&
       task.assigned_to?.toString() !== req.user.id
     ) {
-      return res
-        .status(403)
-        .json({ message: 'Bạn không có quyền sửa công việc này' });
+      return res.status(403).json({ 
+        message: 'Bạn không có quyền sửa công việc này' 
+      });
     }
 
-    // Kiểm tra assigned_to mới
+    // ✅ 3️⃣ Lấy thông tin project để validate ngày tháng
+    const { data: project } = await http.project.get(`/${task.project_id}`, {
+      headers: { Authorization: req.headers.authorization }
+    });
+
+    if (!project) {
+      return res.status(400).json({ message: 'Không tìm thấy dự án' });
+    }
+
+    // ✅ 4️⃣ Validate ngày tháng
+    const newStartDate = start_date ? new Date(start_date) : task.start_date ? new Date(task.start_date) : null;
+    const newDueDate = due_date ? new Date(due_date) : task.due_date ? new Date(task.due_date) : null;
+    const projectStartDate = project.start_date ? new Date(project.start_date) : null;
+    const projectEndDate = project.end_date ? new Date(project.end_date) : null;
+
+    // Kiểm tra: Ngày kết thúc phải sau ngày bắt đầu
+    if (newStartDate && newDueDate && newStartDate > newDueDate) {
+      return res.status(400).json({ 
+        message: 'Ngày kết thúc phải sau ngày bắt đầu',
+        start_date: newStartDate.toISOString(),
+        due_date: newDueDate.toISOString()
+      });
+    }
+
+    // Kiểm tra: Ngày bắt đầu task không được trước ngày bắt đầu project
+    if (newStartDate && projectStartDate && newStartDate < projectStartDate) {
+      return res.status(400).json({ 
+        message: 'Ngày bắt đầu task không được trước ngày bắt đầu dự án',
+        task_start_date: newStartDate.toISOString(),
+        project_start_date: projectStartDate.toISOString()
+      });
+    }
+
+    // Kiểm tra: Ngày kết thúc task không được sau ngày kết thúc project
+    if (newDueDate && projectEndDate && newDueDate > projectEndDate) {
+      return res.status(400).json({ 
+        message: 'Ngày kết thúc task không được sau ngày kết thúc dự án',
+        task_due_date: newDueDate.toISOString(),
+        project_end_date: projectEndDate.toISOString()
+      });
+    }
+
+    // Kiểm tra: Nếu task có start_date mà project chưa có start_date
+    if (newStartDate && !projectStartDate) {
+      return res.status(400).json({ 
+        message: 'Dự án chưa có ngày bắt đầu, không thể gán ngày cho task'
+      });
+    }
+
+    // Kiểm tra: Nếu task có due_date mà project chưa có end_date
+    if (newDueDate && !projectEndDate) {
+      return res.status(400).json({ 
+        message: 'Dự án chưa có ngày kết thúc, không thể gán deadline cho task'
+      });
+    }
+
+    // ✅ 5️⃣ Kiểm tra assigned_to mới
     if (assigned_to && assigned_to !== task.assigned_to?.toString()) {
-      const { data: project } = await http.project.get(`/${task.project_id}`, {
+      if (!project.team_id) {
+        return res.status(400).json({ 
+          message: 'Không thể xác định team của dự án này' 
+        });
+      }
+
+      const { data: teamData } = await http.team.get(`/${project.team_id}`, {
         headers: { Authorization: req.headers.authorization }
       });
 
-      if (!project || !project.team?._id) {
-        return res
-          .status(400)
-          .json({ message: 'Không thể xác định team của dự án này' });
-      }
-
-      const { data: teamData } = await http.team.get(
-        `/${project.team._id}`,
-        { headers: { Authorization: req.headers.authorization } }
-      );
-
-      const memberIds = teamData.members.map(m => m.user?._id?.toString());
+      const memberIds = teamData.members.map(m => m.user_id?.toString() || m.user?._id?.toString());
+      
       if (!memberIds.includes(assigned_to)) {
         return res.status(403).json({
           message: 'Người được giao không thuộc team của dự án này'
@@ -192,42 +286,61 @@ export const updateTask = async (req, res) => {
       task.assigned_to = assigned_to;
     }
 
-    // ✅ Cập nhật các trường khác
-    if (task_name) task.task_name = task_name;
-    if (description) task.description = description;
-    if (start_date) task.start_date = start_date;
-    if (due_date) task.due_date = due_date;
-    if (status) task.status = status;
-    if (priority) task.priority = priority;
+    // ✅ 6️⃣ Cập nhật các trường khác
+    if (task_name !== undefined) task.task_name = task_name;
+    if (description !== undefined) task.description = description;
+    if (start_date !== undefined) task.start_date = newStartDate;
+    if (due_date !== undefined) task.due_date = newDueDate;
+    if (status !== undefined) task.status = status;
+    if (priority !== undefined) task.priority = priority;
 
+    // ✅ 7️⃣ Xử lý progress
     const oldProgress = task.progress;
-    if (progress !== undefined) task.progress = progress;
+    if (progress !== undefined) {
+      // Tự động set progress = 100 nếu status = Done
+      if (status === 'Done') {
+        task.progress = 100;
+      }
+      // Tự động set progress >= 1 nếu status = In Progress và progress = 0
+      else if (status === 'In Progress' && progress === 0) {
+        task.progress = 1;
+      }
+      // Tự động set progress = 0 nếu status = To Do
+      else if (status === 'To Do') {
+        task.progress = 0;
+      }
+      else {
+        task.progress = Math.min(100, Math.max(0, progress));
+      }
+    } else if (status !== undefined) {
+      // Nếu chỉ update status mà không có progress
+      if (status === 'Done') {
+        task.progress = 100;
+      } else if (status === 'To Do') {
+        task.progress = 0;
+      } else if (status === 'In Progress' && task.progress === 0) {
+        task.progress = 1;
+      }
+    }
 
     task.updated_at = new Date();
     await task.save();
 
     // 🧾 Ghi log hoạt động
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: req.user.id,
-          action: `Cập nhật công việc: ${task.task_name} (${status || 'No status change'})`,
-          related_id: task._id,
-          related_type: 'task'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logError) {
-      console.warn('⚠ Không thể ghi activity log:', logError.message);
-    }
+    await ActivityLogger.logTaskUpdated(
+      req.user.id,
+      task._id,
+      task.task_name,
+      status || task.status,
+      req.headers.authorization
+    );
 
     // 🔄 Nếu progress thay đổi → gọi Project Service cập nhật progress
-    if (progress !== undefined && progress !== oldProgress) {
+    if (task.progress !== oldProgress) {
       try {
         await http.project.post(
           `/${task.project_id}/recalc-progress`,
-          { progress: undefined }, // Project Service sẽ tự tính trung bình Task, nên body có thể rỗng
+          {},
           { headers: { Authorization: req.headers.authorization } }
         );
       } catch (err) {
@@ -238,9 +351,7 @@ export const updateTask = async (req, res) => {
     res.json({ message: 'Cập nhật công việc thành công', task });
   } catch (error) {
     console.error('❌ Lỗi updateTask:', error.message);
-    res
-      .status(500)
-      .json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
@@ -257,23 +368,16 @@ export const deleteTask = async (req, res) => {
     if (task.created_by.toString() !== req.user.id)
       return res.status(403).json({ message: 'Bạn không có quyền xóa công việc này' });
 
-    // Ghi log hoạt động trước khi xóa
-    try {
-      await http.activity.post(
-        '/',
-        {
-          user_id: req.user.id,
-          action: `Xóa công việc: ${task.task_name}`,
-          related_id: task._id,
-          related_type: 'task'
-        },
-        { headers: { Authorization: req.headers.authorization } }
-      );
-    } catch (logError) {
-      console.warn('⚠ Không thể ghi activity log khi xóa task:', logError.message);
-    }
-
+    const taskName = task.task_name;
     const projectId = task.project_id;
+
+    // Ghi log hoạt động trước khi xóa
+    await ActivityLogger.logTaskDeleted(
+      req.user.id,
+      task._id,
+      taskName,
+      req.headers.authorization
+    );
 
     // Xóa task
     await task.deleteOne();
@@ -282,7 +386,7 @@ export const deleteTask = async (req, res) => {
     try {
       await http.project.post(
         `/${projectId}/recalc-progress`,
-        { progress: undefined },
+        {},
         { headers: { Authorization: req.headers.authorization } }
       );
     } catch (err) {
@@ -337,5 +441,46 @@ export const getAllTasks = async (req, res) => {
   } catch (error) {
     console.error('❌ Lỗi getAllTasks:', error.message);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+/**
+ * 📦 Batch endpoint - để activity service gọi
+ */
+export const batchGetTasks = async (req, res) => {
+  try {
+    const { ids } = req.query;
+
+    if (!ids) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing ids parameter' 
+      });
+    }
+
+    const idArray = ids.split(',').filter(id => id.trim());
+    if (idArray.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Lấy task
+    const tasks = await Task.find({ _id: { $in: idArray } })
+      .select('task_name description status priority assigned_to project_id due_date progress created_at')
+      .lean();
+
+    // Map task_name → name để ActivityService dùng trực tiếp
+    const mapped = tasks.map(task => ({
+      ...task,
+      name: task.task_name // thêm trường name
+    }));
+
+    res.json({ success: true, data: mapped });
+  } catch (error) {
+    console.error('❌ Error in batch fetch tasks:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching tasks', 
+      error: error.message 
+    });
   }
 };
