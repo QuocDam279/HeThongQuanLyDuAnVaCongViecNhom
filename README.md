@@ -12,7 +12,7 @@
 
 Đây là hệ thống quản lý dự án và công việc nhóm trực tuyến, được xây dựng nhằm giải quyết các khó khăn trong việc quản lý, phân công và theo dõi tiến độ của các nhóm sinh viên hoặc các nhóm làm việc quy mô nhỏ.
 
-Thay vì sử dụng các công cụ chat rời rạc như Zalo, Messenger hoặc các hệ thống quản lý phức tạp như Jira, dự án cung cấp một không gian làm việc tập trung, trực quan và dễ sử dụng. Hệ thống được phát triển dựa trên **kiến trúc Microservices**, đảm bảo tính linh hoạt, khả năng mở rộng và khả năng chịu lỗi cao.
+Thay vì sử dụng các công cụ chat rời rạc như Zalo, Messenger hoặc các hệ thống quản lý phức tạp như Jira, dự án cung cấp một không gian làm việc tập trung, trực quan và dễ sử dụng. Hệ thống được phát triển dựa trên **kiến trúc Microservices**, đảm bảo tính linh hoạt, khả năng mở rộng và khả năng chịu lỗi tốt.
 
 ## 🚀 Tính năng chính
 
